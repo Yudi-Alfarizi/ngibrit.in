@@ -48,7 +48,7 @@ class MyApp extends StatelessWidget {
           }
           if(snapshot.data==null) return const SplashScreen();
           return DiscoverPage();
-        }
+        },
       ),
       routes: {
         '/discover': (context) => const DiscoverPage(), 

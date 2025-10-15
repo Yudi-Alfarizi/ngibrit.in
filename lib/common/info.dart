@@ -21,6 +21,15 @@ class Info {
       toastLength: Toast.LENGTH_LONG,
     );
   }
+  
+  static netral(String message) {
+    Fluttertoast.showToast(
+      msg: message,
+      backgroundColor: Colors.blue,
+      gravity: ToastGravity.CENTER,
+      toastLength: Toast.LENGTH_LONG,
+    );
+  }
 
   static OverlayEntry? _loadingOverlay;
 

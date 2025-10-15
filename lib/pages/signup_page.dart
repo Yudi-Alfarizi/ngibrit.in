@@ -53,7 +53,7 @@ class _SignupPageState extends State<SignupPage> {
           Image.asset('assets/logo_text.png', height: 36, width: 149),
           const Gap(70),
           const Text(
-            'Sign Up Account',
+            'Buat Akun Baru',
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.w700,
@@ -62,7 +62,7 @@ class _SignupPageState extends State<SignupPage> {
           ),
           const Gap(30),
           const Text(
-            'Complete Name',
+            'Nama Lengkap',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
@@ -77,7 +77,7 @@ class _SignupPageState extends State<SignupPage> {
           ),
           const Gap(20),
           const Text(
-            'Email Address',
+            'Alamat Email',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
@@ -92,7 +92,7 @@ class _SignupPageState extends State<SignupPage> {
           ),
           const Gap(20),
           const Text(
-            'Password',
+            'Kata Sandi',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,

@@ -47,11 +47,11 @@ class AuthSource{
           password: password,
         );
         final accountDoc = await FirebaseFirestore.instance
-          .collection('Users')
+          .collection('User')
           .doc(credential.user!.uid)
           .get();
         await DSession.setUser(Map.from (accountDoc.data()!));
-        return 'success';
+        return "success";
     } on FirebaseAuthException catch (e) {
       if (e.code == 'user-not-found') {
         return 'Tidak ada pengguna yang ditemukan.';
