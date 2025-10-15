@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "952523339349",
+    "project_id": "ngibrit-go",
+    "storage_bucket": "ngibrit-go.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:952523339349:android:201ff719b1ecf391a406dc",
+        "android_client_info": {
+          "package_name": "com.example.ngibrit_in"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDysL4PBO8BIm6kXBcc1uP8DA4A296Bz7s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
