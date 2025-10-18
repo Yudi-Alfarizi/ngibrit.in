@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-class Input extends StatelessWidget {
+class Input extends StatefulWidget {
   const Input({
     super.key,
     required this.icon,
@@ -18,21 +18,35 @@ class Input extends StatelessWidget {
   final VoidCallback? onTapBox;
 
   @override
+  State<Input> createState() => _InputState();
+}
+
+class _InputState extends State<Input> {
+
+  late bool _isObscure;
+
+  @override
+  void initState() {
+    super.initState();
+    _isObscure = widget.obsecure ?? false;
+  }
+
+  @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTapBox,
+      onTap: widget.onTapBox,
       child: TextField(
-        controller: editingController,
+        controller: widget.editingController,
         style: TextStyle(
           height: 1.7,
           fontSize: 16,
           fontWeight: FontWeight.w600,
           color: Color(0xff070623),
         ),
-        obscureText: obsecure ?? false,
+        obscureText: _isObscure,
         decoration: InputDecoration(
-          enabled: enable,
-          hintText: hint,
+          enabled: widget.enable,
+          hintText: widget.hint,
           hintStyle: const TextStyle(
             height: 1.7,
             fontSize: 16,
@@ -54,11 +68,28 @@ class Input extends StatelessWidget {
           prefixIcon: UnconstrainedBox(
             alignment: Alignment(0.5, 0),
             child: Image.asset(
-              icon,
+              widget.icon,
               width: 24,
               height: 24,
             ),
-          )
+          ),
+          suffixIcon: (widget.obsecure ?? false)
+            ? GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _isObscure = !_isObscure;
+                  });
+                },
+                child: Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: Image.asset(
+                    _isObscure? 'assets/eye_hidden.png': 'assets/eye.png', // mata terbuka
+                    width: 22,
+                    height: 22,
+                  ),
+                ),
+              )
+            : null,
         ),
       ),
     );
