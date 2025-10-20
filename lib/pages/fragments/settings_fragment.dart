@@ -27,7 +27,7 @@ class _SettingsFragmentState extends State<SettingsFragment> {
         Gap(30+MediaQuery.of(context).padding.top),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: const Text(
+          child: Text(
             'Opsi Pengaturan',
             style: TextStyle(
               fontSize: 24,
