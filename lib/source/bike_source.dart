@@ -23,7 +23,7 @@ class BikeSource {
       final ref = FirebaseFirestore.instance
           .collection('Bikes')
           .orderBy('release', descending: true)
-          .limit(4);
+          .limit(5);
       final queryDocs = await ref.get();
       return queryDocs.docs.map((doc) => Bike.fromJson(doc.data())).toList();
     } catch (e) {
