@@ -27,10 +27,10 @@ class _BrowseFragmentState extends State<BrowseFragment> {
     WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
       browseFeaturedController.fetchFeatured();
       browseNewestController.fetchNewest();
-      bookingStatusController.bike ={
-        'name' : 'Vespa',
-        'image' : 'https://drive.google.com/uc?export=download&id=14j46xeSNvHDUFm2kvyekzYe-07gPKG1J'
-      };
+      // bookingStatusController.bike ={
+      //   'name' : 'Vespa',
+      //   'image' : 'https://drive.google.com/uc?export=download&id=14j46xeSNvHDUFm2kvyekzYe-07gPKG1J'
+      // };
     });
     super.initState();
   }
@@ -89,15 +89,15 @@ class _BrowseFragmentState extends State<BrowseFragment> {
               bottom: 0,
               child: ExtendedImage.network(
                 bike['image'],
-                width: 80,
-                height: 80,
-                fit: BoxFit.cover,
+                width: 120,
+                height: 120,
+                fit: BoxFit.fitWidth,
               ),
             ),
             Positioned(
               top: 0,
               bottom: 0,
-              left: 70,
+              left: 100,
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -432,9 +432,11 @@ class _BrowseFragmentState extends State<BrowseFragment> {
 
   Widget buildCategories() {
     final categories = [
-      ['City', 'assets/ic_city.png'],
-      ['Downhill', 'assets/ic_downhill.png'],
-      ['Beach', 'assets/ic_beach.png'],
+      ['Moge', 'assets/ic_city.png'],
+      ['Ekonomis', 'assets/ic_insurance.png'],
+      ['Lifestyle', 'assets/ic_beach.png'],
+      // ['Premium', 'assets/ic_beach.png'],
+      // ['Sport', 'assets/ic_beach.png'],
     ];
 
     return Column(

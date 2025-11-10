@@ -16,7 +16,7 @@ class BrowseFeaturedController extends GetxController {
 
     final bikes = await BikeSource.fetchFeaturedBikes();
     if (bikes == null) {
-      status = ' Ada Masalah';
+      status = 'Ada Masalah';
       return;
     }
 

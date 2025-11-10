@@ -29,7 +29,7 @@ class ChatSource {
         .collection('chats')
         .add({
           'roomId': uid,
-          'message': 'Welcome to Ngibrit.in',
+          'message': 'Selamat Datang Ngibrit.in',
           'receiverId': uid,
           'senderId': 'cs',
           'bikeDetail': null,
@@ -46,7 +46,7 @@ class ChatSource {
     await FirebaseFirestore.instance
         .collection('CS')
         .doc(uid)
-        .collection('caht')
+        .collection('chats')
         .add({
           'roomId': chat.roomId,
           'message': chat.message,

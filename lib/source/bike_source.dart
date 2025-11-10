@@ -32,7 +32,7 @@ class BikeSource {
     }
   }
 
-  static Future<Bike?> fetchBikes(String bikeId) async {
+  static Future<Bike?> fetchBike(String bikeId) async {
     try {
       final ref = FirebaseFirestore.instance
           .collection('Bikes')

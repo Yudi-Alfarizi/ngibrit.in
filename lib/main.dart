@@ -47,7 +47,7 @@ class MyApp extends StatelessWidget {
             return const CircularProgressIndicator();
           }
           if(snapshot.data==null) return const SplashScreen();
-          return DiscoverPage();
+          return const DiscoverPage();
         },
       ),
       routes: {

@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
 
 class ButtonPrimary extends StatelessWidget {
-  const ButtonPrimary({super.key, required this.text, required this.onTap});
+  const ButtonPrimary({
+    super.key,
+    required this.text,
+    required this.onTap,
+    this.fontSize = 16,
+  });
   final String text;
   final VoidCallback onTap;
+  final double fontSize;
 
   @override
   Widget build(BuildContext context) {
@@ -19,10 +25,10 @@ class ButtonPrimary extends StatelessWidget {
           child: Center(
             child: Text(
               text,
-              style: const TextStyle(
-                fontSize: 16,
+              style: TextStyle(
+                fontSize: fontSize,
                 fontWeight: FontWeight.w700,
-                color: Color(0xff070623),
+                color: const Color(0xff070623),
               ),
             ),
           ),
