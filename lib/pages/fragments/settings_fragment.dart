@@ -69,8 +69,8 @@ class _SettingsFragmentState extends State<SettingsFragment> {
                 null),
               const Gap(20),
               buildItemSetting(
-                'assets/ic_interest.png', 
-                'Minat Dipersonalisasi', 
+                'assets/ic_key.png', 
+                'Ubah Pini', 
                 null),
               const Gap(20),
               buildItemSetting(

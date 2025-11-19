@@ -15,7 +15,7 @@ import 'package:ngibrit_in/pages/splash_screen.dart';
 import 'package:ngibrit_in/pages/success_booking_page.dart';
 import 'firebase_options.dart';
 import 'package:flutter/material.dart';
-
+import 'package:ngibrit_in/pages/map_picker_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -87,6 +87,27 @@ class MyApp extends StatelessWidget {
           return ChattingPage(uid: uid, userName: userName);
         },
       },
+      onGenerateRoute: (settings) {
+        if (settings.name == '/map-picker') {
+          final type = settings.arguments as String? ?? "pickup";
+
+          return MaterialPageRoute(
+            builder: (ctx) => MapPickerPage(
+              initialPosition: null,
+              onLocationPicked: (pos, address) {
+                Navigator.pop(ctx, {
+                  "type": type,
+                  "latLng": pos,
+                  "address": address,
+                });
+              },
+            ),
+          );
+        }
+
+        return null;
+      },
+
     );
   }
 }

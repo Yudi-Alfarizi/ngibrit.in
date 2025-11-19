@@ -432,11 +432,11 @@ class _BrowseFragmentState extends State<BrowseFragment> {
 
   Widget buildCategories() {
     final categories = [
-      ['Moge', 'assets/ic_city.png'],
+      ['Moge', 'assets/ic_moge.png'],
       ['Ekonomis', 'assets/ic_insurance.png'],
       ['Lifestyle', 'assets/ic_beach.png'],
-      // ['Premium', 'assets/ic_beach.png'],
-      // ['Sport', 'assets/ic_beach.png'],
+      ['Premium', 'assets/ic_diamond.png'],
+      ['Sport', 'assets/ic_sport.png'],
     ];
 
     return Column(
