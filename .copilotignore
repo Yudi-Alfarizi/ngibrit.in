@@ -1,0 +1,22 @@
+# Exclude build artifacts and tool caches from Copilot workspace indexing
+# These paths are safe to ignore and often contain large generated files.
+build/
+**/build/
+.dart_tool/
+.pub/
+.pub-cache/
+/.dart_tool/
+/.pub/
+/.pub-cache/
+android/.gradle/
+ios/Pods/
+**/ios/Pods/**
+windows/**/cmake/**
+macos/DerivedData/
+**/DerivedData/**
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.heic
+*.gif

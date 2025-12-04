@@ -1,23 +1,18 @@
-// lib/pages/map_picker_page.dart
+// map_picker_page.dart
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:gap/gap.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:http/http.dart' as http;
-
-import '../widgets/button_primary.dart';
-import 'search_location_page.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:ngibrit_in/widgets/button_primary.dart';
+import 'package:ngibrit_in/pages/search_location_page.dart'; // [FIX] Import halaman pencarian
 
 class MapPickerPage extends StatefulWidget {
   final LatLng? initialPosition;
-  final Function(LatLng position, String address) onLocationPicked;
-
-  const MapPickerPage({
-    super.key,
-    required this.onLocationPicked,
-    this.initialPosition,
-  });
+  const MapPickerPage({super.key, this.initialPosition});
 
   @override
   State<MapPickerPage> createState() => _MapPickerPageState();
@@ -25,94 +20,104 @@ class MapPickerPage extends StatefulWidget {
 
 class _MapPickerPageState extends State<MapPickerPage> {
   final MapController _mapController = MapController();
-
   LatLng? selectedLatLng;
-  String selectedAddress = "";
+  String selectedAddress = "Mencari lokasi...";
   Timer? debounceTimer;
-  StreamSubscription<MapEvent>? _mapSub;
+  bool _isLocating = false;
 
   @override
   void initState() {
     super.initState();
-    selectedLatLng = widget.initialPosition ?? LatLng(-6.200000, 106.816666);
-    // subscribe safely after a frame so mapController is ready
+    selectedLatLng =
+        widget.initialPosition ?? const LatLng(-6.200000, 106.816666);
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // register single subscription
-      _mapSub = _mapController.mapEventStream.listen((event) {
-        try {
-          // Try to extract center dynamically from the event
-          final dyn = event as dynamic;
-          final center = dyn.center as LatLng?;
-          if (center != null) _onMapMoveEnd(center);
-        } catch (e) {
-          // ignore; some event types don't have center
-        }
-      });
-      // optionally move to initial position if provided
       if (widget.initialPosition != null) {
-        _mapController.move(widget.initialPosition!, 16);
         _reverseGeocode(widget.initialPosition!);
       } else {
-        // try to get device location (optional)
-        // caller may prefer to supply initialPosition; we leave it as is
+        _locateUser();
       }
     });
   }
 
-  @override
-  void dispose() {
-    debounceTimer?.cancel();
-    _mapSub?.cancel();
-    super.dispose();
+  // 1. Logic GPS Button
+  Future<void> _locateUser() async {
+    setState(() => _isLocating = true);
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        await Geolocator.openLocationSettings();
+        return;
+      }
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) return;
+      }
+
+      Position pos = await Geolocator.getCurrentPosition();
+      LatLng newPos = LatLng(pos.latitude, pos.longitude);
+
+      _mapController.move(newPos, 17);
+      selectedLatLng = newPos;
+      _reverseGeocode(newPos);
+    } catch (e) {
+      // Handle error
+    } finally {
+      if (mounted) setState(() => _isLocating = false);
+    }
   }
 
-  // AUTO UPDATE SAAT MAP BERHENTI BERGERAK
-  void _onMapMoveEnd(LatLng center) {
-    if (debounceTimer?.isActive ?? false) debounceTimer!.cancel();
-
-    debounceTimer = Timer(const Duration(milliseconds: 400), () async {
-      selectedLatLng = center;
-
-      await _reverseGeocode(center);
-
-      if (mounted) setState(() {});
-    });
+  // 2. Logic Drag Map
+  void _onMapPositionChanged(MapCamera camera, bool hasGesture) {
+    if (hasGesture) {
+      if (debounceTimer?.isActive ?? false) debounceTimer!.cancel();
+      debounceTimer = Timer(const Duration(milliseconds: 800), () {
+        selectedLatLng = camera.center;
+        _reverseGeocode(camera.center);
+      });
+    }
   }
 
-  // REVERSE GEOCODING
   Future<void> _reverseGeocode(LatLng latLng) async {
     final url =
         "https://nominatim.openstreetmap.org/reverse?format=json&lat=${latLng.latitude}&lon=${latLng.longitude}&accept-language=id";
-
     try {
       final res = await http.get(
         Uri.parse(url),
-        headers: {'User-Agent': 'MyFlutterApp'},
+        headers: {'User-Agent': 'ngibrit_in_app'},
       );
-
-      if (res.statusCode == 200 && res.body.isNotEmpty) {
+      if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
-        final display = data["display_name"] as String?;
-        selectedAddress = (display != null && display.isNotEmpty)
-            ? display
-            : "Alamat tidak ditemukan";
-      } else {
-        selectedAddress = "Alamat tidak ditemukan";
+        if (mounted)
+          setState(
+            () => selectedAddress =
+                data["display_name"] ?? "Lokasi tidak diketahui",
+          );
       }
     } catch (_) {
-      selectedAddress = "Alamat tidak ditemukan";
+      if (mounted) setState(() => selectedAddress = "Gagal memuat alamat");
     }
-    if (mounted) setState(() {});
   }
 
-  // DARI HALAMAN SEARCH → MAP AUTO MOVE
-  void _moveToSearchedLocation(LatLng latLng, String address) {
-    try {
-      _mapController.move(latLng, 17);
-    } catch (_) {}
-    selectedLatLng = latLng;
-    selectedAddress = address;
-    if (mounted) setState(() {});
+  // [FIX] Fungsi Buka Pencarian
+  void _openSearch() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SearchLocationPage(
+          onSelected: (latLng, address) {
+            // Callback dari halaman pencarian
+            setState(() {
+              selectedLatLng = latLng;
+              selectedAddress = address;
+            });
+            // Pindahkan kamera peta ke lokasi baru
+            _mapController.move(latLng, 17);
+          },
+        ),
+      ),
+    );
   }
 
   @override
@@ -125,104 +130,86 @@ class _MapPickerPageState extends State<MapPickerPage> {
             options: MapOptions(
               initialCenter: selectedLatLng!,
               initialZoom: 16,
-              // We already listen to mapEventStream (safer subscription),
-              // so no need to set onPositionChanged here.
+              onPositionChanged: _onMapPositionChanged,
             ),
             children: [
               TileLayer(
-                // Use subdomains and provide a custom User-Agent header so OSM tiles are not blocked.
-                urlTemplate:
-                    "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-                subdomains: const ['a', 'b', 'c'],
-                tileProvider: NetworkTileProvider(
-                  headers: {
-                    // identify the app per OSM tile usage policy; include a contact if possible
-                    'User-Agent':
-                        'ngibrit_in/1.0 (contact: dev@yourdomain.com)',
-                  },
-                ),
+                urlTemplate: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
               ),
             ],
           ),
 
-          // PIN TENGAH (use built-in Icon to avoid missing asset crashes)
-          Center(
-            child: IgnorePointer(
-              child: SizedBox(
-                width: 55,
-                height: 55,
-                child: Icon(
-                  Icons.location_on_rounded,
-                  size: 48,
-                  color: Colors.red,
+          // PIN STATIC DI TENGAH
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.only(bottom: 40),
+              child: Icon(Icons.location_on, size: 50, color: Colors.red),
+            ),
+          ),
+
+          // [FIX] SEARCH BAR DENGAN GESTURE DETECTOR
+          Positioned(
+            top: 50,
+            left: 20,
+            right: 20,
+            child: GestureDetector(
+              // <-- Tambahkan ini agar bisa diklik
+              onTap: _openSearch,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(30),
+                  boxShadow: [BoxShadow(blurRadius: 10, color: Colors.black12)],
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.search, color: Colors.grey),
+                    const Gap(10),
+                    Expanded(
+                      child: Text(
+                        selectedAddress,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: Colors.black87),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
           ),
 
-          // SEARCH BAR
+          // GPS BUTTON (Kanan Bawah)
           Positioned(
-            top: 40,
-            left: 16,
-            right: 16,
-            child: Row(
-              children: [
-                GestureDetector(
-                  onTap: () => Navigator.pop(context),
-                  child: const CircleAvatar(
-                    backgroundColor: Colors.white,
-                    child: Icon(Icons.arrow_back, color: Colors.black),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: InkWell(
-                    onTap: () async {
-                      // buka search page, hasil akan dipanggil kembali melalui onSelected
-                      await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => SearchLocationPage(
-                            onSelected: _moveToSearchedLocation,
-                          ),
-                        ),
-                      );
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(50),
-                      ),
-                      child: Text(
-                        selectedAddress.isEmpty
-                            ? "Cari lokasi…"
-                            : selectedAddress,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+            bottom: 100,
+            right: 20,
+            child: FloatingActionButton(
+              backgroundColor: Colors.white,
+              onPressed: _locateUser,
+              child: _isLocating
+                  ? const CircularProgressIndicator()
+                  : const Icon(Icons.my_location, color: Colors.blue),
             ),
           ),
 
-          // BUTTON
+          // CONFIRM BUTTON
           Positioned(
-            bottom: 20,
-            left: 16,
-            right: 16,
+            bottom: 24,
+            left: 24,
+            right: 24,
             child: ButtonPrimary(
               text: "Gunakan Lokasi Ini",
               onTap: () {
                 if (selectedLatLng != null) {
-                  // PENTING: hanya panggil callback — jangan pop di sini.
-                  // Pemilik route (main.dart) akan melakukan Navigator.pop(ctx, ...)
-                  widget.onLocationPicked(selectedLatLng!, selectedAddress);
+                  Navigator.pop(context, {
+                    'lat': selectedLatLng!.latitude,
+                    'lng': selectedLatLng!.longitude,
+                    'address': selectedAddress,
+                  });
                 }
               },
             ),

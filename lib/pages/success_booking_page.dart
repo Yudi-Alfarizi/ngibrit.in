@@ -1,6 +1,8 @@
 import 'package:extended_image/extended_image.dart';
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
+import 'package:get/get.dart'; // [FIX] Import Get
+import 'package:ngibrit_in/controllers/booking_status_controller.dart'; // [FIX] Import Controller
 import 'package:ngibrit_in/models/bike.dart';
 import 'package:ngibrit_in/widgets/button_primary.dart';
 import 'package:ngibrit_in/widgets/button_secondary.dart';
@@ -11,13 +13,17 @@ class SuccessBookingPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // [FIX] Inisialisasi Controller
+    final bookingStatusCtrl = Get.put(BookingStatusController());
+
     return Scaffold(
+      backgroundColor: const Color(0xffF8F8FA),
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 24),
         children: [
           const Gap(60),
           const Text(
-            'Pemesanan Berhasil!\nSemoga Perjalananmu Menyenangkan!',
+            'Success Booking\nHave a Great Ride!',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontWeight: FontWeight.w700,
@@ -29,26 +35,24 @@ class SuccessBookingPage extends StatelessWidget {
           Stack(
             alignment: Alignment.bottomCenter,
             children: [
-              Image.asset(
-                'assets/ellipse.png',
-                fit: BoxFit.fitWidth,
-              ),
+              Image.asset('assets/ellipse.png', fit: BoxFit.fitWidth),
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: ExtendedImage.network(
                   bike.image,
                   height: 200,
                   fit: BoxFit.fitHeight,
+                  cache: true,
                 ),
               ),
             ],
           ),
-          const Gap(50),
+          const Gap(40),
           Text(
             bike.name,
             textAlign: TextAlign.center,
             style: const TextStyle(
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w700,
               fontSize: 22,
               color: Color(0xff070623),
             ),
@@ -58,29 +62,42 @@ class SuccessBookingPage extends StatelessWidget {
             textAlign: TextAlign.center,
             style: const TextStyle(
               fontWeight: FontWeight.w400,
-              fontSize: 18,
+              fontSize: 16,
               color: Color(0xff838384),
             ),
           ),
           const Gap(50),
+
+          // [LOGIC BARU] Aktifkan Flash Message di Controller sebelum pindah halaman
           ButtonPrimary(
             text: 'Pemesanan Motor Lainnya',
             onTap: () {
-              Navigator.restorablePushNamedAndRemoveUntil(
+              // 1. Aktifkan status notifikasi
+              bookingStatusCtrl.activateFlashMessage();
+
+              // 2. Pindah Halaman
+              Navigator.pushNamedAndRemoveUntil(
                 context,
                 '/discover',
-                (route) => route.settings.name == '/detail',
+                (route) => false,
+                arguments: {'initialIndex': 0}, // Hapus showNotif flag
               );
             },
           ),
           const Gap(12),
+
           ButtonSecondary(
             text: 'Lihat Pesanan Saya',
             onTap: () {
-              Navigator.restorablePushNamedAndRemoveUntil(
+              // 1. Aktifkan status notifikasi
+              bookingStatusCtrl.activateFlashMessage();
+
+              // 2. Pindah Halaman
+              Navigator.pushNamedAndRemoveUntil(
                 context,
                 '/discover',
-                (route) => route.settings.name == '/detail',
+                (route) => false,
+                arguments: {'initialIndex': 1}, // Hapus showNotif flag
               );
             },
           ),

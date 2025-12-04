@@ -1,0 +1,24 @@
+{
+  // Reduce file watching and search/indexing pressure
+  "files.watcherExclude": {
+    "**/build/**": true,
+    "**/.dart_tool/**": true,
+    "**/.pub-cache/**": true,
+    "**/.pub/**": true,
+    "**/android/.gradle/**": true,
+    "**/ios/Pods/**": true,
+    "**/macos/DerivedData/**": true,
+    "**/windows/**/cmake/**": true
+  },
+  "search.exclude": {
+    "**/build": true,
+    "**/.dart_tool": true,
+    "**/.pub-cache": true,
+    "**/ios/Pods": true
+  },
+  "files.exclude": {
+    "**/build": true,
+    "**/.dart_tool": true,
+    "**/.pub": true
+  }
+}

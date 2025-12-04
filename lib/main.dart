@@ -2,6 +2,7 @@ import 'package:d_session/d_session.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:ngibrit_in/models/bike.dart';
 import 'package:ngibrit_in/pages/booking_page.dart';
 import 'package:ngibrit_in/pages/chatting_page.dart';
@@ -51,63 +52,61 @@ class MyApp extends StatelessWidget {
         },
       ),
       routes: {
-        '/discover': (context) => const DiscoverPage(), 
+        '/discover': (context) => const DiscoverPage(),
         '/signup': (context) => const SignupPage(),
         '/signin': (context) => const SigninPage(),
-        '/detail': (context){
+
+        '/detail': (context) {
           String bikeId = ModalRoute.of(context)!.settings.arguments as String;
           return DetailPage(bikeId: bikeId);
         },
+
         '/booking': (context) {
           Bike bike = ModalRoute.of(context)!.settings.arguments as Bike;
           return BookingPage(bike: bike);
         },
+
+        // [FIX] Perbaikan Route Checkout (Ambil arguments Map)
         '/checkout': (context) {
-          Map data = ModalRoute.of(context)!.settings.arguments as Map;
-          Bike bike = data['bike'];
-          String startDate = data['startDate'];
-          String endDate =  data['endDate'];
+          final args =
+              ModalRoute.of(context)!.settings.arguments
+                  as Map<String, dynamic>;
           return CheckoutPage(
-            bike: bike,
-            startDate: startDate,
-            endDate: endDate);
+            bike: args['bike'],
+            startDate: args['startDate'],
+            endDate: args['endDate'],
+          );
         },
-        '/pin': (context) {
-          Bike bike = ModalRoute.of(context)!.settings.arguments as Bike;
-          return PINPage(bike: bike);
-        },
+
+        // [FIX] PIN Page tidak butuh argumen di constructor lagi
+        '/pin': (context) => const PINPage(),
+
         '/success-booking': (context) {
           Bike bike = ModalRoute.of(context)!.settings.arguments as Bike;
           return SuccessBookingPage(bike: bike);
         },
+
         '/chatting': (context) {
           Map data = ModalRoute.of(context)!.settings.arguments as Map;
-          String uid = data['uid'];
-          String userName= data['userName'];
-          return ChattingPage(uid: uid, userName: userName);
+          return ChattingPage(uid: data['uid'], userName: data['userName']);
         },
       },
+
+      // [FIX] Perbaikan Map Picker
       onGenerateRoute: (settings) {
         if (settings.name == '/map-picker') {
-          final type = settings.arguments as String? ?? "pickup";
+          // [FIX] Cek tipe data dulu. Jangan langsung paksa 'as LatLng'.
+          // Jika arguments BUKAN LatLng (misal null atau String), kita set null.
+          final LatLng? initialPos = (settings.arguments is LatLng)
+              ? settings.arguments as LatLng
+              : null;
 
           return MaterialPageRoute(
-            builder: (ctx) => MapPickerPage(
-              initialPosition: null,
-              onLocationPicked: (pos, address) {
-                Navigator.pop(ctx, {
-                  "type": type,
-                  "latLng": pos,
-                  "address": address,
-                });
-              },
-            ),
+            builder: (ctx) => MapPickerPage(initialPosition: initialPos),
           );
         }
-
         return null;
       },
-
     );
   }
 }

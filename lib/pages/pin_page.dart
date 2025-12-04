@@ -1,20 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:get/get.dart';
-import 'package:ngibrit_in/controllers/booking_status_controller.dart';
+import 'package:ngibrit_in/common/info.dart';
+import 'package:ngibrit_in/controllers/order_controller.dart';
 import 'package:ngibrit_in/models/bike.dart';
 import 'package:ngibrit_in/widgets/button_primary.dart';
 import 'package:ngibrit_in/widgets/button_secondary.dart';
 
 class PINPage extends StatefulWidget {
-  const PINPage({super.key, required this.bike});
-  final Bike bike;
+  const PINPage({super.key});
 
   @override
   State<PINPage> createState() => _PINPageState();
 }
+
 class _PINPageState extends State<PINPage> {
-  final bookingStatusController = Get.find<BookingStatusController>();
+  final orderController = Get.put(OrderController());
+
   final pin1 = TextEditingController();
   final pin2 = TextEditingController();
   final pin3 = TextEditingController();
@@ -42,6 +44,46 @@ class _PINPageState extends State<PINPage> {
     }
   }
 
+  void processPayment() async {
+    final args =
+        ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+
+    final Bike bikeData = args['bike'];
+
+    Info.showLoading(context, message: "Memproses Pesanan...");
+
+    // [FIX] Panggil createOrder dengan parameter lengkap termasuk NAME
+    bool success = await orderController.createOrder(
+      bike: bikeData,
+      startDate: args['startDate'],
+      endDate: args['endDate'],
+      duration: args['duration'],
+      totalPrice: args['totalPrice'],
+      paymentMethod: args['paymentMethod'],
+      userPhone: args['phone'] ?? '-',
+      renterName: args['name'] ?? 'Guest', // [FIX] Kirim Nama Penyewa
+
+      pickupLocation: args['pickup'] ?? '-',
+      returnLocation: args['return'] ?? '-',
+      agency: args['agency'] ?? '-',
+      insuranceName: args['insurance'] ?? '-',
+      subTotal: args['totalPrice'] * 0.7,
+      tax: args['totalPrice'] * 0.11,
+      insurancePrice: 25000,
+    );
+
+    Info.hideLoading();
+
+    if (success) {
+      if (mounted) {
+        // Pindah ke success booking membawa data bike
+        Navigator.pushNamed(context, '/success-booking', arguments: bikeData);
+      }
+    } else {
+      Info.error("Gagal membuat pesanan. Silakan coba lagi.");
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -66,45 +108,39 @@ class _PINPageState extends State<PINPage> {
                     inputPIN(pin4),
                   ],
                 ),
-                Gap(50),
+                const Gap(50),
                 buildNumberInput(),
               ],
             ),
           ),
           const Gap(50),
+
           Obx(() {
             if (!isComplete.value) return const SizedBox();
             return Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: ButtonPrimary(
                 text: 'Bayar Sekarang',
-                onTap: () {
-                  bookingStatusController.bike = {
-                    'id': widget.bike.id,
-                    'name': widget.bike.name,
-                    'image': widget.bike.image,
-                    'category': widget.bike.category,
-                  };
-                  Navigator.pushNamed(
-                    context,
-                    '/success-booking',
-                    arguments: widget.bike,
-                  );
-                },
+                onTap: processPayment,
               ),
             );
           }),
-          Gap(12),
+
+          const Gap(12),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: ButtonSecondary(text: 'Cancel Pembayaran', onTap: () => Navigator.pop(context)),
+            child: ButtonSecondary(
+              text: 'Cancel Pembayaran',
+              onTap: () => Navigator.pop(context),
+            ),
           ),
-          Gap(30),
+          const Gap(30),
         ],
       ),
     );
   }
 
+  // (Helper UI: buildNumberInput, inputPIN, buildHeader tetap sama)
   Widget buildNumberInput() {
     return SizedBox(
       width: 300,

@@ -28,7 +28,7 @@ class SplashScreen extends StatelessWidget {
               child: Image.asset('assets/splash_vespa.png'),
             )),
           const Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
+            padding: EdgeInsets.symmetric(horizontal: 24),
             child: Text(
               textAlign: TextAlign.center,
               'Sewa motor cepat, mudah, dan siap jalan kapan aja! Tinggal klik, langsung ngibrit!',

@@ -1,4 +1,3 @@
-// checkout_page.dart
 import 'dart:math';
 import 'package:d_session/d_session.dart';
 import 'package:extended_image/extended_image.dart';
@@ -13,6 +12,8 @@ import 'package:ngibrit_in/models/account.dart';
 import 'package:ngibrit_in/models/bike.dart';
 import 'package:ngibrit_in/widgets/button_primary.dart';
 import 'package:ngibrit_in/controllers/booking_status_controller.dart';
+import 'package:ngibrit_in/controllers/order_controller.dart';
+import 'package:ngibrit_in/common/info.dart';
 
 class CheckoutPage extends StatefulWidget {
   const CheckoutPage({
@@ -34,27 +35,32 @@ class _CheckoutPageState extends State<CheckoutPage> {
   num balance = 9500000;
   double grandTotal = 0;
 
-  // payment state
-  String? selectedPayment; // null = belum pilih
+  String? selectedPayment;
   String? selectedBank;
   String? generatedVA;
 
-  // bank list
   final List<String> bankList = ['BCA', 'BRI', 'Mandiri', 'CIMB Niaga'];
-
-  // toast
   late FToast fToast;
 
-  // booking status controller (GetX)
-  final BookingStatusController bookingStatusController =
-      Get.find<BookingStatusController>();
+  // [AMAN] Inisialisasi controller di sini aman
+  final BookingStatusController bookingStatusController = Get.put(
+    BookingStatusController(),
+  );
 
   @override
   void initState() {
     super.initState();
     fToast = FToast();
+
+    // [FIX FINAL] Gunakan addPostFrameCallback
+    // Ini akan menunggu sampai tampilan 'CheckoutPage' benar-benar siap (sudah dirender),
+    // baru kemudian menghubungkan FToast dengan context. Ini mencegah crash "Signal 3".
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      fToast.init(context);
+      try {
+        fToast.init(context);
+      } catch (e) {
+        print("Error init FToast: $e");
+      }
     });
   }
 
@@ -67,7 +73,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
     return sb.toString();
   }
 
-  // ERROR TOAST (merah)
   void showErrorToast(String message) {
     final Widget notifUI = Transform.translate(
       offset: const Offset(0, -50),
@@ -96,7 +101,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
         ),
       ),
     );
-
     fToast.removeCustomToast();
     fToast.showToast(
       child: notifUI,
@@ -105,7 +109,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
     );
   }
 
-  // SUCCESS TOAST (hijau + icon)
   void showSuccessToast(String message) {
     final Widget notifUI = Transform.translate(
       offset: const Offset(0, -50),
@@ -143,7 +146,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
         ),
       ),
     );
-
     fToast.removeCustomToast();
     fToast.showToast(
       child: notifUI,
@@ -154,9 +156,10 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
   @override
   Widget build(BuildContext context) {
+    // [FIX] Hapus init(context) dari build() karena sudah dipindah ke addPostFrameCallback
+
     final headerHeight =
         kToolbarHeight + MediaQuery.of(context).padding.top + 32;
-
     final payments = [
       ['My Wallet', 'assets/wallet.png'],
       ['Transfer', 'assets/cards.png'],
@@ -178,19 +181,14 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 const Gap(24),
                 _buildPaymentMethod(payments),
                 const Gap(24),
-
-                // aksi dinamis per metode
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: _buildActionArea(),
                 ),
-
                 const Gap(30),
               ],
             ),
           ),
-
-          // header fixed (konsep seperti booking page)
           Positioned(
             top: 0,
             left: 0,
@@ -203,10 +201,28 @@ class _CheckoutPageState extends State<CheckoutPage> {
   }
 
   Widget _buildActionArea() {
-    // jika belum memilih metode -> hide semua tombol
     if (selectedPayment == null) return const SizedBox.shrink();
 
-    // TRANSFER -> tampilkan VA & tombol "Saya Sudah Transfer"
+    // Ambil Arguments
+    final argsFromBooking =
+        ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+
+    // Siapkan Data Lengkap
+    final Map<String, dynamic> fullBookingData = {
+      'bike': widget.bike,
+      'startDate': widget.startDate,
+      'endDate': widget.endDate,
+      'duration': _calculateDuration(widget.startDate, widget.endDate),
+      'totalPrice': grandTotal,
+      'paymentMethod': selectedPayment,
+      'name': argsFromBooking['name'],
+      'phone': argsFromBooking['phone'],
+      'pickup': argsFromBooking['pickup'],
+      'return': argsFromBooking['return'],
+      'agency': argsFromBooking['agency'],
+      'insurance': argsFromBooking['insurance'],
+    };
+
     if (selectedPayment == 'Transfer') {
       final va = generatedVA ?? '';
       return Column(
@@ -266,24 +282,43 @@ class _CheckoutPageState extends State<CheckoutPage> {
               ),
             ),
             const Gap(12),
-            // Tombol "Saya Sudah Transfer"
+
             ButtonPrimary(
               text: 'Saya Sudah Transfer',
-              onTap: () {
-                // isi bookingStatusController agar buildBookingStatus dapat menampilkan data
-                bookingStatusController.bike = {
-                  'id': widget.bike.id,
-                  'name': widget.bike.name,
-                  'image': widget.bike.image,
-                  'category': widget.bike.category,
-                };
+              onTap: () async {
+                final orderCtrl = Get.put(OrderController());
+                Info.showLoading(context, message: "Memverifikasi...");
 
-                // navigasi ke success-booking (membawa bike)
-                Navigator.pushNamed(
-                  context,
-                  '/success-booking',
-                  arguments: widget.bike,
+                bool success = await orderCtrl.createOrder(
+                  bike: fullBookingData['bike'],
+                  startDate: fullBookingData['startDate'],
+                  endDate: fullBookingData['endDate'],
+                  duration: fullBookingData['duration'],
+                  totalPrice: fullBookingData['totalPrice'],
+                  paymentMethod: fullBookingData['paymentMethod'],
+                  userPhone: fullBookingData['phone'] ?? '-',
+                  renterName: fullBookingData['name'] ?? 'Guest',
+
+                  pickupLocation: fullBookingData['pickup'] ?? '-',
+                  returnLocation: fullBookingData['return'] ?? '-',
+                  agency: fullBookingData['agency'] ?? '-',
+                  insuranceName: fullBookingData['insurance'] ?? '-',
+                  subTotal: fullBookingData['totalPrice'] * 0.7,
+                  tax: fullBookingData['totalPrice'] * 0.11,
+                  insurancePrice: 25000,
                 );
+
+                Info.hideLoading();
+
+                if (success) {
+                  Navigator.pushNamed(
+                    context,
+                    '/success-booking',
+                    arguments: widget.bike,
+                  );
+                } else {
+                  showErrorToast("Gagal memproses pesanan.");
+                }
               },
             ),
           ],
@@ -291,28 +326,17 @@ class _CheckoutPageState extends State<CheckoutPage> {
       );
     }
 
-    // My Wallet & Cash -> Pesan Sekarang (tombol muncul hanya untuk keduanya)
     if (selectedPayment == 'My Wallet' || selectedPayment == 'Cash') {
       return ButtonPrimary(
         text: 'Pesan Sekarang',
         onTap: () {
           if (selectedPayment == 'My Wallet') {
             if (balance < grandTotal) {
-              showErrorToast(
-                'Gagal melakukan pembayaran. Dompet anda tidak memiliki saldo yang cukup saat ini.',
-              );
+              showErrorToast('Gagal melakukan pembayaran. Saldo tidak cukup.');
               return;
             }
-            // My Wallet -> lanjut ke /pin (PIN page akan set bookingStatusController)
-            Navigator.pushNamed(context, '/pin', arguments: widget.bike);
-            return;
           }
-
-          // Cash: langsung ke PIN (PIN page set bookingStatusController)
-          if (selectedPayment == 'Cash') {
-            Navigator.pushNamed(context, '/pin', arguments: widget.bike);
-            return;
-          }
+          Navigator.pushNamed(context, '/pin', arguments: fullBookingData);
         },
       );
     }
@@ -320,6 +344,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
     return const SizedBox.shrink();
   }
 
+  // --- Helper UI Functions ---
   Widget _buildPaymentMethod(List<List<String>> payments) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -349,14 +374,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 onTap: () {
                   setState(() {
                     selectedPayment = label;
-                    // reset bank/va when switching away/from transfer
-                    if (selectedPayment != 'Transfer') {
-                      selectedBank = null;
-                      generatedVA = null;
-                    } else {
-                      selectedBank = null;
-                      generatedVA = null;
-                    }
+                    selectedBank = null;
+                    generatedVA = null;
                   });
                 },
                 child: Container(
@@ -393,15 +412,17 @@ class _CheckoutPageState extends State<CheckoutPage> {
           ),
         ),
         const Gap(24),
-
-        // Wallet card (tetap tampil)
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: FutureBuilder(
             future: DSession.getUser(),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting)
-                return const CircularProgressIndicator();
+                return const SizedBox(
+                  height: 180,
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              if (!snapshot.hasData) return const SizedBox();
               final Account account = Account.fromJson(
                 Map.from(snapshot.data!),
               );
@@ -475,8 +496,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
             },
           ),
         ),
-
-        // Jika Transfer dipilih -> tampilkan dropdown bank + instruksi
         if (selectedPayment == 'Transfer') ...[
           const Gap(16),
           Padding(
@@ -506,79 +525,11 @@ class _CheckoutPageState extends State<CheckoutPage> {
               ),
             ),
           ),
-
-          // instruksi transfer (muncul jika bank sudah dipilih)
-          if (selectedBank != null) ...[
-            const Gap(12),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: const Color(0xffF5F7FA),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xffD7E1FF)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Instruksi Pembayaran',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const Gap(8),
-                    Text(
-                      'Bank: $selectedBank',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const Gap(6),
-                    const Text(
-                      'Nomor Virtual Account:',
-                      style: TextStyle(fontSize: 13, color: Colors.black54),
-                    ),
-                    const Gap(6),
-                    SelectableText(
-                      generatedVA ?? '-',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 1.2,
-                      ),
-                    ),
-                    const Gap(10),
-                    Text(
-                      'Total Pembayaran: ${NumberFormat.currency(locale: "id_ID", symbol: "Rp ", decimalDigits: 0).format(grandTotal)}',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const Gap(8),
-                    const Text(
-                      'Panduan:',
-                      style: TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    const Text('1. Buka aplikasi m-banking Anda.'),
-                    const Text('2. Pilih menu Virtual Account.'),
-                    const Text('3. Masukkan nomor VA di atas.'),
-                    const Text('4. Bayar sesuai total tagihan.'),
-                  ],
-                ),
-              ),
-            ),
-          ],
         ],
       ],
     );
   }
 
-  // DETAILS & helpers (tidak berubah banyak dari sebelumnya)
   Widget buildDetails() {
     final dur = _calculateDuration(widget.startDate, widget.endDate);
     final pricePerDay = widget.bike.price.toDouble();
@@ -586,7 +537,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
     final insurance = subTotal * 0.20;
     final tax = subTotal * 0.11;
     grandTotal = subTotal + insurance + tax;
-
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -663,154 +613,117 @@ class _CheckoutPageState extends State<CheckoutPage> {
     }
   }
 
-  Widget buildItemDetails1(String title, String data, String unit) {
-    return Row(
-      children: [
-        Text(
-          title,
-          style: const TextStyle(fontSize: 14, color: Color(0xff838384)),
-        ),
-        const Spacer(),
-        Text(
-          data,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-        ),
-        Text(unit, style: const TextStyle(fontSize: 14)),
-      ],
-    );
-  }
-
-  Widget buildItemDetails2(String title, String data) {
-    return Row(
-      children: [
-        Text(
-          title,
-          style: const TextStyle(fontSize: 14, color: Color(0xff838384)),
-        ),
-        const Spacer(),
-        Text(
-          data,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-        ),
-      ],
-    );
-  }
-
-  Widget buildItemDetails3(String title, String data) {
-    return Row(
-      children: [
-        Text(
-          title,
-          style: const TextStyle(fontSize: 14, color: Color(0xff838384)),
-        ),
-        const Spacer(),
-        Text(
-          data,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            color: Color(0xff4A1DFF),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget buildSnippetBike() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 24),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      height: 98,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        color: Colors.white,
+  Widget buildItemDetails1(String title, String data, String unit) => Row(
+    children: [
+      Text(
+        title,
+        style: const TextStyle(fontSize: 14, color: Color(0xff838384)),
       ),
-      child: Row(
-        children: [
-          ExtendedImage.network(
-            widget.bike.image,
-            width: 90,
-            height: 70,
-            fit: BoxFit.contain,
-          ),
-          const Gap(10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  widget.bike.name,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                Text(
-                  widget.bike.category,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Color(0xff838384),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Row(
+      const Spacer(),
+      Text(
+        data,
+        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+      ),
+      Text(unit, style: const TextStyle(fontSize: 14)),
+    ],
+  );
+  Widget buildItemDetails2(String title, String data) => Row(
+    children: [
+      Text(
+        title,
+        style: const TextStyle(fontSize: 14, color: Color(0xff838384)),
+      ),
+      const Spacer(),
+      Text(
+        data,
+        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+      ),
+    ],
+  );
+  Widget buildItemDetails3(String title, String data) => Row(
+    children: [
+      Text(
+        title,
+        style: const TextStyle(fontSize: 14, color: Color(0xff838384)),
+      ),
+      const Spacer(),
+      Text(
+        data,
+        style: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w700,
+          color: Color(0xff4A1DFF),
+        ),
+      ),
+    ],
+  );
+  Widget buildSnippetBike() => Container(
+    margin: const EdgeInsets.symmetric(horizontal: 24),
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    height: 98,
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(16),
+      color: Colors.white,
+    ),
+    child: Row(
+      children: [
+        ExtendedImage.network(
+          widget.bike.image,
+          width: 90,
+          height: 70,
+          fit: BoxFit.contain,
+        ),
+        const Gap(10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
-                '${widget.bike.rating}',
+                widget.bike.name,
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              const Gap(4),
-              const Icon(Icons.star, size: 20, color: Color(0xffFFBC1C)),
+              Text(
+                widget.bike.category,
+                style: const TextStyle(fontSize: 14, color: Color(0xff838384)),
+              ),
             ],
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget buildHeader(BuildContext context, double headerHeight) {
-    return Container(
-      height: headerHeight,
-      padding: EdgeInsets.only(
-        top: MediaQuery.of(context).padding.top + 10,
-        left: 24,
-        right: 24,
-        bottom: 10,
-      ),
-      color: Theme.of(context).scaffoldBackgroundColor,
-      child: Row(
-        children: [
-          GestureDetector(
-            onTap: () => Navigator.pop(context),
-            child: Container(
-              height: 46,
-              width: 46,
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white,
-              ),
-              alignment: Alignment.center,
-              child: Image.asset(
-                'assets/ic_arrow_back.png',
-                width: 24,
-                height: 24,
+        ),
+        Row(
+          children: [
+            Text(
+              '${widget.bike.rating}',
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Color(0xff070623),
               ),
             ),
-          ),
-          const Expanded(
-            child: Text(
-              'Checkout',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-            ),
-          ),
-          Container(
+            const Gap(4),
+            const Icon(Icons.star, size: 20, color: Color(0xffFFBC1C)),
+          ],
+        ),
+      ],
+    ),
+  );
+  Widget buildHeader(BuildContext context, double headerHeight) => Container(
+    height: headerHeight,
+    padding: EdgeInsets.only(
+      top: MediaQuery.of(context).padding.top + 10,
+      left: 24,
+      right: 24,
+      bottom: 10,
+    ),
+    color: Theme.of(context).scaffoldBackgroundColor,
+    child: Row(
+      children: [
+        GestureDetector(
+          onTap: () => Navigator.pop(context),
+          child: Container(
             height: 46,
             width: 46,
             decoration: const BoxDecoration(
@@ -818,10 +731,31 @@ class _CheckoutPageState extends State<CheckoutPage> {
               color: Colors.white,
             ),
             alignment: Alignment.center,
-            child: Image.asset('assets/ic_more.png', width: 24, height: 24),
+            child: Image.asset(
+              'assets/ic_arrow_back.png',
+              width: 24,
+              height: 24,
+            ),
           ),
-        ],
-      ),
-    );
-  }
+        ),
+        const Expanded(
+          child: Text(
+            'Checkout',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+          ),
+        ),
+        Container(
+          height: 46,
+          width: 46,
+          decoration: const BoxDecoration(
+            shape: BoxShape.circle,
+            color: Colors.white,
+          ),
+          alignment: Alignment.center,
+          child: Image.asset('assets/ic_more.png', width: 24, height: 24),
+        ),
+      ],
+    ),
+  );
 }

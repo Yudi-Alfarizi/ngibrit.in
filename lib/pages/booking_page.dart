@@ -114,18 +114,16 @@ class _BookingPageState extends State<BookingPage> {
 
   // Open the map picker and set the appropriate field based on returned 'type'
   Future<void> openMapPicker(BuildContext context, String type) async {
-    final result = await Navigator.pushNamed(
-      context,
-      '/map-picker',
-      arguments: type,
-    );
+    // [FIX] HAPUS arguments: type, karena MapPickerPage butuh LatLng, bukan String.
+    // Biarkan kosong agar null (Map akan otomatis detect lokasi saat ini).
+    final result = await Navigator.pushNamed(context, '/map-picker');
 
     if (result != null && result is Map) {
       final addr = result['address'] as String?;
-      final retType = result['type'] as String? ?? type;
-      if (retType == 'pickup') {
+      // Kita pakai variable 'type' dari parameter fungsi ini, bukan dari result map
+      if (type == 'pickup') {
         setState(() => selectedPickup = addr);
-      } else if (retType == 'return') {
+      } else if (type == 'return') {
         setState(() => selectedReturn = addr);
       }
     }
