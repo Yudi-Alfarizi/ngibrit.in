@@ -5,7 +5,7 @@ import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:gap/gap.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
-import 'package:ngibrit_in/controllers/booking_status_controller.dart'; // [FIX] Import Controller Status
+import 'package:ngibrit_in/controllers/booking_status_controller.dart';
 import 'package:ngibrit_in/controllers/browse_featured_controller.dart';
 import 'package:ngibrit_in/controllers/browse_newest_controller.dart';
 import 'package:ngibrit_in/models/account.dart';
@@ -25,7 +25,6 @@ class BrowseFragment extends StatefulWidget {
 class _BrowseFragmentState extends State<BrowseFragment> {
   final browseFeaturedController = Get.put(BrowseFeaturedController());
   final browseNewestController = Get.put(BrowseNewestController());
-  // [FIX] Panggil Controller Status untuk cek logika "Show Once"
   final bookingStatusController = Get.put(BookingStatusController());
 
   OrderModel? activeOrder;
@@ -41,22 +40,19 @@ class _BrowseFragmentState extends State<BrowseFragment> {
       browseFeaturedController.fetchFeatured();
       browseNewestController.fetchNewest();
       _fetchUserDataAndActiveOrder();
-      _checkFlashMessage(); // [LOGIC BARU]
+      _checkFlashMessage();
     });
   }
 
-  // [LOGIC BARU] Menggunakan Controller Global
+  
   void _checkFlashMessage() {
-    // Cek apakah ada sinyal dari Success Page untuk menampilkan notifikasi
     if (bookingStatusController.flashMessageActive.value) {
       setState(() {
         _isStatusVisible = true;
       });
 
-      // PENTING: Segera matikan sinyal di controller agar saat balik lagi widget TIDAK muncul
       bookingStatusController.deactivateFlashMessage();
 
-      // Timer 10 Detik untuk menghilangkan widget di tampilan saat ini
       _statusTimer = Timer(const Duration(seconds: 10), () {
         if (mounted) {
           setState(() {
@@ -108,7 +104,7 @@ class _BrowseFragmentState extends State<BrowseFragment> {
 
           SliverToBoxAdapter(child: buildHeader()),
 
-          // Widget Status hanya muncul jika logic terpenuhi & ada order aktif
+          
           if (_isStatusVisible && activeOrder != null)
             SliverToBoxAdapter(child: buildBookingStatus())
           else
@@ -182,14 +178,14 @@ class _BrowseFragmentState extends State<BrowseFragment> {
     );
   }
 
-  // [UI FIX] Layout Status Widget Lebih Rapi & Nama Motor Tidak Terpotong
+  
   Widget buildBookingStatus() {
     if (activeOrder == null) return const SizedBox.shrink();
 
     final bike = activeOrder!.bikeSnapshot;
 
     return Container(
-      height: 100, // Sedikit diperbesar agar muat 2 baris teks
+      height: 100,
       margin: const EdgeInsets.fromLTRB(24, 24, 24, 0),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -199,28 +195,27 @@ class _BrowseFragmentState extends State<BrowseFragment> {
           BoxShadow(
             offset: const Offset(0, 16),
             blurRadius: 20,
+            // ignore: deprecated_member_use
             color: const Color(0xff4A1DFF).withOpacity(0.25),
           ),
         ],
       ),
       child: Row(
         children: [
-          // Gambar di Kiri
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
             child: ExtendedImage.network(
               bike['image'] ?? '',
               width: 80,
               height: 80,
-              fit: BoxFit.fitWidth, // FitWidth agar gambar memenuhi lebar
+              fit: BoxFit.fitWidth,
               cache: true,
               color:
-                  Colors.white, // Background putih di balik gambar transparan
+                  Colors.white,
               colorBlendMode: BlendMode.dstOver,
             ),
           ),
           const Gap(16),
-          // Teks di Kanan (Menggunakan Column agar bisa multiline)
           Expanded(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -235,7 +230,6 @@ class _BrowseFragmentState extends State<BrowseFragment> {
                   ),
                 ),
                 const Gap(4),
-                // Nama Motor (Mendukung 2 Baris)
                 Text(
                   bike['name'] ?? 'Motor',
                   maxLines: 2,
@@ -243,7 +237,7 @@ class _BrowseFragmentState extends State<BrowseFragment> {
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xffFFBC1C), // Warna Emas/Kuning
+                    color: Color(0xffFFBC1C),
                     height: 1.2,
                   ),
                 ),
@@ -263,11 +257,6 @@ class _BrowseFragmentState extends State<BrowseFragment> {
       ),
     );
   }
-
-  // --- KODE DI BAWAH INI TETAP SAMA SEPERTI SEBELUMNYA ---
-  // (buildItemNewest, buildFeatured, buildItemFeatured, buildCategories, buildHeader)
-  // Tidak perlu diubah, copy paste dari versi sebelumnya jika hilang,
-  // atau biarkan kode existing Anda untuk bagian bawah ini.
 
   Widget buildItemNewest(Bike bike, EdgeInsetsGeometry margin) {
     return GestureDetector(

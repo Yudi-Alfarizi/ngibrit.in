@@ -3,7 +3,6 @@ import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 
 class LocationService {
-  /// Minta izin + ambil lokasi perangkat
   static Future<Position> getCurrentPosition() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
@@ -25,8 +24,7 @@ class LocationService {
 
     return await Geolocator.getCurrentPosition();
   }
-
-  /// Reverse geocoding GRATIS via Nominatim (OpenStreetMap)
+  
   static Future<String> getAddressFromLatLng(double lat, double lon) async {
     final url = Uri.parse(
       "https://nominatim.openstreetmap.org/reverse"

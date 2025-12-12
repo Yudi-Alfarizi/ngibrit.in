@@ -65,7 +65,7 @@ class _SearchLocationPageState extends State<SearchLocationPage> {
               controller: searchC,
               autofocus: true,
               onChanged: (txt) {
-                setAppBarState(() {}); // update tombol X
+                setAppBarState(() {});
                 searchLocation(txt);
               },
               decoration: InputDecoration(
@@ -113,7 +113,7 @@ class _SearchLocationPageState extends State<SearchLocationPage> {
                     overflow: TextOverflow.ellipsis,
                   ),
                   onTap: () {
-                    FocusScope.of(context).unfocus(); // penting!
+                    FocusScope.of(context).unfocus();
                     widget.onSelected(LatLng(lat, lon), display);
                     Navigator.pop(context);
                   },

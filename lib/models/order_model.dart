@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class OrderModel {
   final String id;
   final String userId;
-  final String userName; // Nama Penyewa (Input Booking)
+  final String userName;
   final String userEmail;
   final String userPhone;
   final Map<String, dynamic> bikeSnapshot;
@@ -20,7 +20,7 @@ class OrderModel {
   final num totalPrice;
   final String paymentMethod;
   final String status;
-  final Timestamp createdAt; // [BARU]
+  final Timestamp createdAt;
 
   OrderModel({
     required this.id,
@@ -70,7 +70,7 @@ class OrderModel {
     );
   }
 
-  // Untuk keperluan menyimpan data (jika diperlukan di sisi User)
+  
   Map<String, dynamic> toJson() {
     return {
       'userId': userId,

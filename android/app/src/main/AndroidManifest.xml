@@ -8,7 +8,7 @@
         android:label="Ngibrit-in"
         android:name="${applicationName}"
         android:usesCleartextTraffic="True"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/launcher_icon">
         <activity
             android:name=".MainActivity"
             android:exported="true"

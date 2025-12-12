@@ -112,15 +112,11 @@ class _BookingPageState extends State<BookingPage> {
     super.dispose();
   }
 
-  // Open the map picker and set the appropriate field based on returned 'type'
   Future<void> openMapPicker(BuildContext context, String type) async {
-    // [FIX] HAPUS arguments: type, karena MapPickerPage butuh LatLng, bukan String.
-    // Biarkan kosong agar null (Map akan otomatis detect lokasi saat ini).
     final result = await Navigator.pushNamed(context, '/map-picker');
 
     if (result != null && result is Map) {
       final addr = result['address'] as String?;
-      // Kita pakai variable 'type' dari parameter fungsi ini, bukan dari result map
       if (type == 'pickup') {
         setState(() => selectedPickup = addr);
       } else if (type == 'return') {
@@ -196,8 +192,6 @@ class _BookingPageState extends State<BookingPage> {
               ],
             ),
           ),
-
-          // HEADER FIXED
           Positioned(
             top: 0,
             left: 0,
@@ -292,9 +286,6 @@ class _BookingPageState extends State<BookingPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // =====================================================
-          // 🔵 LOKASI PENGAMBILAN (GOJEK STYLE)
-          // =====================================================
           const Text(
             "Lokasi Pengambilan",
             style: TextStyle(
@@ -332,7 +323,7 @@ class _BookingPageState extends State<BookingPage> {
                     ),
                     child: const Icon(
                       Icons.location_on_rounded,
-                      color: Colors.green,
+                      color: Color(0xFF4CAF50),
                       size: 22,
                     ),
                   ),
@@ -345,22 +336,17 @@ class _BookingPageState extends State<BookingPage> {
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
                         color: selectedPickup == null
-                            ? Colors.grey
+                            ? const Color(0xFF9E9E9E)
                             : const Color(0xff1E1E1E),
                       ),
                     ),
                   ),
-                  const Icon(Icons.map_outlined, color: Colors.grey),
+                  const Icon(Icons.map_outlined, color: Color(0xFF9E9E9E)),
                 ],
               ),
             ),
           ),
-
           const SizedBox(height: 28),
-
-          // =====================================================
-          // 🟣 LOKASI PENGEMBALIAN (GOJEK STYLE)
-          // =====================================================
           const Text(
             "Lokasi Pengembalian",
             style: TextStyle(
@@ -398,7 +384,7 @@ class _BookingPageState extends State<BookingPage> {
                     ),
                     child: const Icon(
                       Icons.flag_circle_rounded,
-                      color: Colors.deepPurple,
+                      color: Color(0xFF673AB7),
                       size: 22,
                     ),
                   ),

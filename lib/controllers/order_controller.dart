@@ -4,11 +4,11 @@ import 'package:get/get.dart';
 import 'package:ngibrit_in/models/account.dart';
 import 'package:ngibrit_in/models/bike.dart';
 import 'package:ngibrit_in/models/order_model.dart';
-import 'package:ngibrit_in/source/order_source.dart';
+import 'package:ngibrit_in/services/payment_service.dart';
 
 class OrderController extends GetxController {
-  /// Fungsi untuk membuat order baru
-  Future<bool> createOrder({
+
+  Future<Map<String, dynamic>> createOrder({
     required Bike bike,
     required String startDate,
     required String endDate,
@@ -16,33 +16,37 @@ class OrderController extends GetxController {
     required num totalPrice,
     required String paymentMethod,
     required String userPhone,
-    required String renterName, // [FIX] Wajib: Nama Penyewa dari Input Booking
-    
-    // Parameter opsional dengan default value
-    String pickupLocation = '-',
-    String returnLocation = '-',
-    String agency = '-',
-    String insuranceName = 'Standard',
-    num insurancePrice = 0,
-    num tax = 0,
-    num subTotal = 0,
+    required String renterName,
+    required String pickupLocation,
+    required String returnLocation,
+    required String agency,
+    required String insuranceName,
+    required num insurancePrice,
+    required num tax,
+    required num subTotal,
   }) async {
     try {
-      // 1. Ambil data user yang sedang login dari Session (Hanya untuk ID & Email)
       final userSession = await DSession.getUser();
-      if (userSession == null) return false;
-
+      if (userSession == null)
+        return {'success': false, 'message': 'Session expired'};
       final account = Account.fromJson(Map.from(userSession));
 
-      // 2. Buat Object OrderModel
+      final docRef = FirebaseFirestore.instance.collection('Orders').doc();
+      final orderId = docRef.id;
+
+      // Status Awal
+      String initialStatus =
+          (paymentMethod == 'Lainnya' || paymentMethod == 'Transfer')
+          ? 'Menunggu Pembayaran'
+          : 'Dikirim';
+
       final newOrder = OrderModel(
-        id: '', // ID akan digenerate otomatis oleh Firestore
+        id: orderId,
         userId: account.uid,
-        userName: renterName, // [FIX] Gunakan nama dari input booking, BUKAN account.name
+        userName: renterName,
         userEmail: account.email,
-        userPhone: userPhone, 
-        
-        // Simpan Snapshot Data Motor
+        userPhone: userPhone,
+
         bikeSnapshot: {
           'id': bike.id,
           'name': bike.name,
@@ -68,16 +72,54 @@ class OrderController extends GetxController {
         totalPrice: totalPrice,
         paymentMethod: paymentMethod,
 
-        status: 'Dikirim', // Status Awal
+        status: initialStatus,
         createdAt: Timestamp.now(),
       );
 
-      // 3. Kirim ke OrderSource untuk disimpan ke Firestore
-      bool success = await OrderSource.addOrder(newOrder);
+      await docRef.set(newOrder.toJson());
 
-      return success;
+      // --- Logika MIDTRANS ---
+      if (paymentMethod == 'Lainnya') {
+        final paymentData = await PaymentService.createTransaction(
+          orderId: orderId,
+          amount: totalPrice.toInt(),
+          itemName: "Sewa ${bike.name} ($duration Hari)",
+          customerName: renterName,
+          customerEmail: account.email,
+          customerPhone: userPhone,
+        );
+
+        if (paymentData != null && paymentData['redirect_url'] != null) {
+          return {
+            'success': true,
+            'isMidtrans': true,
+            'redirectUrl': paymentData['redirect_url'],
+            'orderId':
+                orderId,
+            'bike': bike,
+          };
+        } else {
+          return {'success': false, 'message': 'Gagal koneksi ke pembayaran'};
+        }
+      }
+
+      return {'success': true, 'isMidtrans': false};
     } catch (e) {
       print("Error di OrderController: $e");
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  // Fungsi Update Status Manual (Dipanggil setelah WebView Sukses)
+  Future<bool> updateOrderStatus(String orderId, String newStatus) async {
+    try {
+      await FirebaseFirestore.instance.collection('Orders').doc(orderId).update(
+        {'status': newStatus},
+      );
+
+      return true;
+    } catch (e) {
+      print("Error updating status: $e");
       return false;
     }
   }

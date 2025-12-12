@@ -1,4 +1,3 @@
-// lib/pages/search_address_page.dart
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -40,7 +39,6 @@ class _SearchAddressPageState extends State<SearchAddressPage> {
       return;
     }
 
-    // debounce 500ms
     _debounce = Timer(const Duration(milliseconds: 500), () {
       _searchAddress(q.trim());
     });
@@ -51,7 +49,6 @@ class _SearchAddressPageState extends State<SearchAddressPage> {
       loading = true;
     });
 
-    // Batasi ke Indonesia dengan countrycodes=id
     final url =
         '$_nominatimBase?q=${Uri.encodeComponent(query)}&format=json&addressdetails=1&limit=10&countrycodes=id';
 
@@ -122,7 +119,6 @@ class _SearchAddressPageState extends State<SearchAddressPage> {
       body: Column(
         children: [
           const SizedBox(height: 12),
-          // search bar
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Container(
@@ -148,7 +144,6 @@ class _SearchAddressPageState extends State<SearchAddressPage> {
                       onChanged: _onSearchChanged,
                     ),
                   ),
-                  // clear button
                   if (searchController.text.isNotEmpty)
                     IconButton(
                       icon: const Icon(Icons.close, color: Colors.grey),
@@ -159,8 +154,6 @@ class _SearchAddressPageState extends State<SearchAddressPage> {
             ),
           ),
           const SizedBox(height: 12),
-
-          // hasil
           Expanded(
             child: loading
                 ? const Center(child: CircularProgressIndicator())
@@ -216,14 +209,11 @@ class _SearchAddressPageState extends State<SearchAddressPage> {
                         },
                       ),
           ),
-
-          // bottom button (opsional)
           Padding(
             padding: const EdgeInsets.all(20),
             child: ButtonPrimary(
               text: "Buka Maps",
               onTap: () {
-                // beri sinyal ke peta untuk kembali dan fokus (jika diperlukan)
                 Navigator.pop(context, {"openMap": true});
               },
             ),

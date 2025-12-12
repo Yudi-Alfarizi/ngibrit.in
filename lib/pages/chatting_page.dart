@@ -4,6 +4,7 @@ import 'package:extended_image/extended_image.dart';
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:ngibrit_in/common/info.dart';
 import 'package:ngibrit_in/models/chat.dart';
 import 'package:ngibrit_in/models/order_model.dart';
@@ -27,7 +28,6 @@ class _ChattingPageState extends State<ChattingPage> {
     return DateFormat('HH:mm').format(timestamp.toDate());
   }
 
-  // Helper Format Currency
   String formatCurrency(num price) {
     return NumberFormat.currency(
       locale: 'id',
@@ -38,7 +38,6 @@ class _ChattingPageState extends State<ChattingPage> {
 
   @override
   void initState() {
-    // Path Firestore untuk User: CS -> uid -> chats
     streamChats = FirebaseFirestore.instance
         .collection('CS')
         .doc(widget.uid)
@@ -48,7 +47,6 @@ class _ChattingPageState extends State<ChattingPage> {
     super.initState();
   }
 
-  // [LOGIC] Navigasi ke Detail Order
   void _navigateToDetail(String orderId) async {
     Info.showLoading(context, message: "Memuat pesanan...");
     try {
@@ -59,7 +57,6 @@ class _ChattingPageState extends State<ChattingPage> {
       Info.hideLoading();
 
       if (doc.exists && mounted) {
-        // Parsing ke OrderModel User
         final orderData = OrderModel.fromJson(doc.data()!, doc.id);
         Navigator.push(
           context,
@@ -73,6 +70,17 @@ class _ChattingPageState extends State<ChattingPage> {
     } catch (e) {
       Info.hideLoading();
       Info.error("Gagal memuat pesanan");
+    }
+  }
+
+  Future<void> _launchMapsUrl(String url) async {
+    final Uri uri = Uri.parse(url);
+    try {
+      if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+        await launchUrl(uri, mode: LaunchMode.platformDefault);
+      }
+    } catch (e) {
+      Info.error("Tidak dapat membuka peta: $e");
     }
   }
 
@@ -108,11 +116,9 @@ class _ChattingPageState extends State<ChattingPage> {
           padding: const EdgeInsets.only(top: 20),
           itemBuilder: (context, index) {
             Chat chat = Chat.fromJson(list[index].data());
-            // Jika pengirim 'cs' -> Tampilkan di Kiri (chatCS)
             if (chat.senderId == 'cs') {
               return chatCS(chat);
             }
-            // Jika pengirim User -> Tampilkan di Kanan (chatUser)
             return chatUser(chat);
           },
         );
@@ -120,7 +126,162 @@ class _ChattingPageState extends State<ChattingPage> {
     );
   }
 
+  Widget _buildLocationBubble(String message, bool isSender) {
+
+    String textContent = "";
+    String url = "";
+
+    if (message.contains("http")) {
+      int urlStartIndex = message.indexOf("http");
+      textContent = message.substring(0, urlStartIndex).trim();
+      String rawUrl = message.substring(urlStartIndex);
+      url = rawUrl.split(RegExp(r'\s+')).first;
+    } else {
+      textContent = message;
+    }
+
+    return Column(
+      crossAxisAlignment: isSender
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
+      children: [
+        if (textContent.isNotEmpty)
+          Container(
+            margin: EdgeInsets.only(
+              left: isSender ? 49 : 24,
+              right: isSender ? 24 : 49,
+              bottom: 8,
+            ),
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: isSender ? const Color(0xff070623) : Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: isSender
+                  ? null
+                  : Border.all(color: const Color(0xffE5E7EB)),
+            ),
+            child: Text(
+              textContent,
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 16,
+                color: isSender ? Colors.white : const Color(0xff070623),
+              ),
+            ),
+          ),
+        if (url.isNotEmpty)
+          GestureDetector(
+            onTap: () => _launchMapsUrl(url),
+            child: Container(
+              width: 240,
+              margin: EdgeInsets.only(
+                left: isSender ? 0 : 24,
+                right: isSender ? 24 : 0,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xffE5E7EB)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      ClipRRect(
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(16),
+                        ),
+                        child: Image.network(
+                          'https://maps.gstatic.com/mapfiles/api-3/images/map_error_1.png',
+                          height: 130,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                          errorBuilder: (ctx, err, stack) => Container(
+                            height: 130,
+                            color: Colors.grey[300],
+                            child: const Icon(Icons.map, color: Colors.grey),
+                          ),
+                        ),
+                      ),
+                      Container(
+                        height: 130,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(16),
+                          ),
+                          color: Colors.black.withOpacity(0.1),
+                        ),
+                      ),
+                      const Icon(
+                        Icons.location_on,
+                        color: Color(0xffFF2055),
+                        size: 48,
+                      ),
+                    ],
+                  ),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    width: double.infinity,
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.vertical(
+                        bottom: Radius.circular(16),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "Lokasi Terkini",
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                            color: Color(0xff070623),
+                          ),
+                        ),
+                        const Gap(4),
+                        Row(
+                          children: [
+                            const Text(
+                              "Buka di Google Maps",
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Color(0xff838384),
+                              ),
+                            ),
+                            const Spacer(),
+                            const Icon(
+                              Icons.open_in_new,
+                              size: 14,
+                              color: Color(0xff838384),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
   Widget chatUser(Chat chat) {
+    bool isLocationMessage =
+        chat.message.contains('maps.google.com') ||
+        chat.message.contains('google.com/maps');
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
@@ -129,44 +290,47 @@ class _ChattingPageState extends State<ChattingPage> {
             children: [
               const Gap(16),
               buildSnippetBike(chat.bikeDetail!),
-              // [UI] Garis Putus di bawah Snippet User
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 child: DottedLine(dashColor: Color(0xffCECED5)),
               ),
             ],
           ),
-        Container(
-          margin: const EdgeInsets.only(left: 49, right: 24),
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: const Color(0xff070623),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                chat.message,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 16,
-                  color: Colors.white,
-                  height: 1.8,
-                ),
-              ),
-              const Gap(4),
-              if (chat.timestamp != null)
+        if (isLocationMessage)
+          _buildLocationBubble(chat.message, true)
+        else
+          Container(
+            margin: const EdgeInsets.only(left: 49, right: 24),
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: const Color(0xff070623),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
                 Text(
-                  formatTimestamp(chat.timestamp!),
+                  chat.message,
                   style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xffCECED5),
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                    color: Colors.white,
+                    height: 1.8,
                   ),
                 ),
-            ],
+                const Gap(4),
+                if (chat.timestamp != null)
+                  Text(
+                    formatTimestamp(chat.timestamp!),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xffCECED5),
+                    ),
+                  ),
+              ],
+            ),
           ),
-        ),
+
         const Gap(12),
         Row(
           mainAxisAlignment: MainAxisAlignment.end,
@@ -190,10 +354,12 @@ class _ChattingPageState extends State<ChattingPage> {
   }
 
   Widget chatCS(Chat chat) {
-    // Cek apakah ini snippet order
     bool isOrderSnapshot =
         chat.bikeDetail != null &&
         (chat.bikeDetail!['isOrderSnapshot'] ?? false);
+    bool isLocationMessage =
+        chat.message.contains('maps.google.com') ||
+        chat.message.contains('google.com/maps');
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -202,10 +368,7 @@ class _ChattingPageState extends State<ChattingPage> {
           Column(
             children: [
               const Gap(16),
-              // [FIX] Tampilkan Snippet dari CS
               buildSnippetBike(chat.bikeDetail!),
-
-              // [UI] Garis Putus di bawah Snippet CS
               if (isOrderSnapshot)
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
@@ -213,39 +376,42 @@ class _ChattingPageState extends State<ChattingPage> {
                 ),
             ],
           ),
-
-        Container(
-          margin: const EdgeInsets.only(right: 49, left: 24),
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xffE5E7EB)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                chat.message,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 16,
-                  color: Color(0xff070623),
-                  height: 1.8,
-                ),
-              ),
-              const Gap(4),
-              if (chat.timestamp != null)
+        if (isLocationMessage)
+          _buildLocationBubble(chat.message, false)
+        else
+          Container(
+            margin: const EdgeInsets.only(right: 49, left: 24),
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xffE5E7EB)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 Text(
-                  formatTimestamp(chat.timestamp!),
+                  chat.message,
                   style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xff838384),
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                    color: Color(0xff070623),
+                    height: 1.8,
                   ),
                 ),
-            ],
+                const Gap(4),
+                if (chat.timestamp != null)
+                  Text(
+                    formatTimestamp(chat.timestamp!),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xff838384),
+                    ),
+                  ),
+              ],
+            ),
           ),
-        ),
+
         const Gap(12),
         Row(
           children: [
@@ -258,7 +424,7 @@ class _ChattingPageState extends State<ChattingPage> {
                 shape: BoxShape.circle,
               ),
               padding: const EdgeInsets.all(4),
-              child: Image.asset('assets/logo_ngibritin.png'), // Atau Asset CS
+              child: Image.asset('assets/logo-ngibritin.png'),
             ),
             const Gap(8),
             const Text(
@@ -382,46 +548,37 @@ class _ChattingPageState extends State<ChattingPage> {
     );
   }
 
-  // [PERBAIKAN] Widget Snippet untuk Aplikasi User
-  // Support format lama (Detail Motor) dan format baru (Snapshot Order)
-  // [FIX 1B] Update Tampilan & Logika Klik Snippet
   Widget buildSnippetBike(Map bike) {
     bool isOrderSnapshot = bike['isOrderSnapshot'] ?? false;
-
-    // Data Extraction
     String title = isOrderSnapshot
         ? (bike['bikeName'] ?? 'Motor')
         : (bike['name'] ?? 'Motor');
     String imageUrl = isOrderSnapshot
         ? (bike['bikeImage'] ?? '')
         : (bike['image'] ?? '');
-    String statusOrCategory = isOrderSnapshot
+    String status = isOrderSnapshot
         ? (bike['status'] ?? '-')
         : (bike['category'] ?? '-');
     String orderId = isOrderSnapshot
         ? (bike['orderId'] ?? '')
         : (bike['id'] ?? '');
-
-    // [BARU] Ambil data tambahan
     num totalPrice = isOrderSnapshot ? (bike['totalPrice'] ?? 0) : 0;
+    String safeOrderId = (orderId.length >= 5)
+        ? orderId.substring(0, 5).toUpperCase()
+        : orderId.toUpperCase();
     String dateRange = isOrderSnapshot
         ? '${bike['startDate']} - ${bike['endDate']}'
         : '';
 
-    String safeOrderId = (orderId.length >= 5)
-        ? orderId.substring(0, 5).toUpperCase()
-        : orderId.toUpperCase();
-
-    // Warna Status
     Color statusColor = const Color(0xff838384);
     Color statusBg = const Color(0xffF3F4F6);
-    if (statusOrCategory == 'Dikirim') {
+    if (status == 'Dikirim') {
       statusColor = const Color(0xffFFBC1C);
       statusBg = const Color(0xffFFF8E1);
-    } else if (statusOrCategory == 'Berlangsung') {
+    } else if (status == 'Berlangsung') {
       statusColor = const Color(0xff4A1DFF);
       statusBg = const Color(0xffEFEEF7);
-    } else if (statusOrCategory == 'Selesai') {
+    } else if (status == 'Selesai') {
       statusColor = const Color(0xff1AC75A);
       statusBg = const Color(0xffE8F9EE);
     }
@@ -429,13 +586,10 @@ class _ChattingPageState extends State<ChattingPage> {
     return GestureDetector(
       onTap: () {
         if (orderId.isNotEmpty) {
-          if (isOrderSnapshot) {
-            // [FIX] Navigasi ke Detail Order jika diklik
+          if (isOrderSnapshot)
             _navigateToDetail(orderId);
-          } else {
-            // Jika info motor biasa -> Navigasi ke Detail Motor
+          else
             Navigator.pushNamed(context, '/detail', arguments: orderId);
-          }
         }
       },
       child: Container(
@@ -497,7 +651,6 @@ class _ChattingPageState extends State<ChattingPage> {
                             color: Color(0xff838384),
                           ),
                         ),
-                        // [BARU] Tampilkan Tanggal Sewa di Snippet User
                         Text(
                           dateRange,
                           style: const TextStyle(
@@ -507,7 +660,7 @@ class _ChattingPageState extends State<ChattingPage> {
                         ),
                       ] else
                         Text(
-                          statusOrCategory,
+                          status,
                           style: const TextStyle(
                             fontSize: 12,
                             color: Color(0xff838384),
@@ -516,17 +669,13 @@ class _ChattingPageState extends State<ChattingPage> {
                     ],
                   ),
                 ),
-
-                // Tombol Detail untuk Motor Biasa
                 if (!isOrderSnapshot)
                   GestureDetector(
-                    onTap: () {
-                      Navigator.pushNamed(
-                        context,
-                        '/detail',
-                        arguments: orderId,
-                      );
-                    },
+                    onTap: () => Navigator.pushNamed(
+                      context,
+                      '/detail',
+                      arguments: orderId,
+                    ),
                     child: const Text(
                       "Detail",
                       style: TextStyle(
@@ -539,8 +688,6 @@ class _ChattingPageState extends State<ChattingPage> {
                   ),
               ],
             ),
-
-            // Footer Khusus Order Snapshot
             if (isOrderSnapshot) ...[
               const Gap(12),
               const Divider(height: 1, color: Color(0xffF3F4F6)),
@@ -566,7 +713,7 @@ class _ChattingPageState extends State<ChattingPage> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      statusOrCategory,
+                      status,
                       style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w600,

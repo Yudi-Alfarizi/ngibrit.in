@@ -52,8 +52,7 @@ class _PINPageState extends State<PINPage> {
 
     Info.showLoading(context, message: "Memproses Pesanan...");
 
-    // [FIX] Panggil createOrder dengan parameter lengkap termasuk NAME
-    bool success = await orderController.createOrder(
+    final result = await orderController.createOrder(
       bike: bikeData,
       startDate: args['startDate'],
       endDate: args['endDate'],
@@ -61,26 +60,27 @@ class _PINPageState extends State<PINPage> {
       totalPrice: args['totalPrice'],
       paymentMethod: args['paymentMethod'],
       userPhone: args['phone'] ?? '-',
-      renterName: args['name'] ?? 'Guest', // [FIX] Kirim Nama Penyewa
+      renterName: args['name'] ?? 'Guest',
 
       pickupLocation: args['pickup'] ?? '-',
       returnLocation: args['return'] ?? '-',
       agency: args['agency'] ?? '-',
       insuranceName: args['insurance'] ?? '-',
-      subTotal: args['totalPrice'] * 0.7,
-      tax: args['totalPrice'] * 0.11,
+      subTotal:
+          args['totalPrice'] *
+          0.7,
+      tax: args['totalPrice'] * 0.11, 
       insurancePrice: 25000,
     );
 
     Info.hideLoading();
 
-    if (success) {
+    if (result['success'] == true) {
       if (mounted) {
-        // Pindah ke success booking membawa data bike
         Navigator.pushNamed(context, '/success-booking', arguments: bikeData);
       }
     } else {
-      Info.error("Gagal membuat pesanan. Silakan coba lagi.");
+      Info.error(result['message'] ?? "Gagal membuat pesanan.");
     }
   }
 
@@ -140,7 +140,6 @@ class _PINPageState extends State<PINPage> {
     );
   }
 
-  // (Helper UI: buildNumberInput, inputPIN, buildHeader tetap sama)
   Widget buildNumberInput() {
     return SizedBox(
       width: 300,

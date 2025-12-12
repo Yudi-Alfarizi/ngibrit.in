@@ -31,7 +31,7 @@ class _SignupPageState extends State<SignupPage> {
       edtEmail.text,
       edtPassword.text
     ).then((message){
-      Info.hideLoading(); // tutup loading saat proses selesai
+      Info.hideLoading();
       if(message != 'success')return Info.error(message);
 
       // success

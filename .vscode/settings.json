@@ -20,5 +20,6 @@
     "**/build": true,
     "**/.dart_tool": true,
     "**/.pub": true
-  }
+  },
+  "java.configuration.updateBuildConfiguration": "interactive"
 }

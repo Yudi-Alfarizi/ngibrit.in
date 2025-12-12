@@ -1,11 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:d_session/d_session.dart'; // [Tambahan] Import Session
+import 'package:d_session/d_session.dart';
 import 'package:extended_image/extended_image.dart';
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:intl/intl.dart';
 import 'package:ngibrit_in/common/info.dart';
-import 'package:ngibrit_in/models/account.dart'; // [Tambahan] Import Model Account
+import 'package:ngibrit_in/models/account.dart';
 import 'package:ngibrit_in/models/chat.dart';
 import 'package:ngibrit_in/models/order_model.dart';
 import 'package:ngibrit_in/source/chat_source.dart';
@@ -49,7 +49,6 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
     }
   }
 
-  // [REFACTOR] Mengirim Snapshot Order yang Benar
   void onContactCS() async {
     Info.showLoading(context, message: 'Menghubungkan...');
     try {
@@ -63,22 +62,21 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
 
       await ChatSource.openChatRoom(account.uid, account.name);
 
-      // [FIX 1A] Ganti struktur data agar menjadi SNIPPET ORDER
       final snapshotData = {
-        'isOrderSnapshot': true, // Penanda tipe snippet
-        'orderId': order.id, // ID Order
+        'isOrderSnapshot': true,
+        'orderId': order.id,
         'bikeName': order.bikeSnapshot['name'],
         'bikeImage': order.bikeSnapshot['image'],
-        'userName': order.userName, // Nama Penyewa
-        'totalPrice': order.totalPrice, // Total Harga
-        'status': order.status, // Status Order
-        'startDate': order.startDate, // Tanggal Awal
-        'endDate': order.endDate, // Tanggal Akhir
+        'userName': order.userName,
+        'totalPrice': order.totalPrice,
+        'status': order.status,
+        'startDate': order.startDate,
+        'endDate': order.endDate,
       };
 
       String messageText =
           'Halo CS, saya butuh bantuan untuk pesanan ini.\n'
-          'No. Pesanan: ${order.id.substring(0, 8).toUpperCase()}';
+          'ID Pesanan : ${order.id.substring(0, 8).toUpperCase()}';
 
       Chat chat = Chat(
         roomId: account.uid,
@@ -86,7 +84,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
         receiverId: 'cs',
         senderId: account.uid,
         bikeDetail:
-            snapshotData, // [PENTING] Kirim snapshot order, bukan bike detail biasa
+            snapshotData,
       );
 
       await ChatSource.send(chat, account.uid);
@@ -107,10 +105,11 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xffF8F8FA),
       appBar: AppBar(
         toolbarHeight: 80,
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
         elevation: 0,
         centerTitle: true,
         automaticallyImplyLeading: false,
@@ -167,7 +166,6 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
     );
   }
 
-  // --- WIDGET CARDS (Tetap sama seperti sebelumnya) ---
   Widget _buildCard1_MainDetail() {
     Color headerColor = Colors.grey;
     String headerText = "Sedang Dikirim";
@@ -175,7 +173,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
       headerColor = const Color(0xff070623);
       headerText = "Sedang Berlangsung";
     } else if (order.status == 'Selesai') {
-      headerColor = const Color(0xffFF2055);
+      headerColor = const Color(0xff1AC75A);
       headerText = "Pesanan Selesai";
     }
 

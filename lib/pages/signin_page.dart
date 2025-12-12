@@ -27,7 +27,7 @@ class _SigninPageState extends State<SigninPage> {
     AuthSource.signIn(edtEmail.text, edtPassword.text).then((
       message,
     ) {
-      Info.hideLoading(); // tutup loading saat proses selesai
+      Info.hideLoading();
       if (message != 'success') return Info.error(message);
 
       // success

@@ -1,8 +1,8 @@
 import 'package:extended_image/extended_image.dart';
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
-import 'package:get/get.dart'; // [FIX] Import Get
-import 'package:ngibrit_in/controllers/booking_status_controller.dart'; // [FIX] Import Controller
+import 'package:get/get.dart';
+import 'package:ngibrit_in/controllers/booking_status_controller.dart';
 import 'package:ngibrit_in/models/bike.dart';
 import 'package:ngibrit_in/widgets/button_primary.dart';
 import 'package:ngibrit_in/widgets/button_secondary.dart';
@@ -13,7 +13,6 @@ class SuccessBookingPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // [FIX] Inisialisasi Controller
     final bookingStatusCtrl = Get.put(BookingStatusController());
 
     return Scaffold(
@@ -67,20 +66,15 @@ class SuccessBookingPage extends StatelessWidget {
             ),
           ),
           const Gap(50),
-
-          // [LOGIC BARU] Aktifkan Flash Message di Controller sebelum pindah halaman
           ButtonPrimary(
             text: 'Pemesanan Motor Lainnya',
             onTap: () {
-              // 1. Aktifkan status notifikasi
               bookingStatusCtrl.activateFlashMessage();
-
-              // 2. Pindah Halaman
               Navigator.pushNamedAndRemoveUntil(
                 context,
                 '/discover',
                 (route) => false,
-                arguments: {'initialIndex': 0}, // Hapus showNotif flag
+                arguments: {'initialIndex': 0},
               );
             },
           ),
@@ -89,15 +83,12 @@ class SuccessBookingPage extends StatelessWidget {
           ButtonSecondary(
             text: 'Lihat Pesanan Saya',
             onTap: () {
-              // 1. Aktifkan status notifikasi
               bookingStatusCtrl.activateFlashMessage();
-
-              // 2. Pindah Halaman
               Navigator.pushNamedAndRemoveUntil(
                 context,
                 '/discover',
                 (route) => false,
-                arguments: {'initialIndex': 1}, // Hapus showNotif flag
+                arguments: {'initialIndex': 1},
               );
             },
           ),

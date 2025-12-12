@@ -18,6 +18,7 @@ import 'firebase_options.dart';
 import 'package:flutter/material.dart';
 import 'package:ngibrit_in/pages/map_picker_page.dart';
 
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
@@ -65,8 +66,6 @@ class MyApp extends StatelessWidget {
           Bike bike = ModalRoute.of(context)!.settings.arguments as Bike;
           return BookingPage(bike: bike);
         },
-
-        // [FIX] Perbaikan Route Checkout (Ambil arguments Map)
         '/checkout': (context) {
           final args =
               ModalRoute.of(context)!.settings.arguments
@@ -77,26 +76,18 @@ class MyApp extends StatelessWidget {
             endDate: args['endDate'],
           );
         },
-
-        // [FIX] PIN Page tidak butuh argumen di constructor lagi
         '/pin': (context) => const PINPage(),
-
         '/success-booking': (context) {
           Bike bike = ModalRoute.of(context)!.settings.arguments as Bike;
           return SuccessBookingPage(bike: bike);
         },
-
         '/chatting': (context) {
           Map data = ModalRoute.of(context)!.settings.arguments as Map;
           return ChattingPage(uid: data['uid'], userName: data['userName']);
         },
       },
-
-      // [FIX] Perbaikan Map Picker
       onGenerateRoute: (settings) {
         if (settings.name == '/map-picker') {
-          // [FIX] Cek tipe data dulu. Jangan langsung paksa 'as LatLng'.
-          // Jika arguments BUKAN LatLng (misal null atau String), kita set null.
           final LatLng? initialPos = (settings.arguments is LatLng)
               ? settings.arguments as LatLng
               : null;

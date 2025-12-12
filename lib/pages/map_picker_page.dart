@@ -1,4 +1,3 @@
-// map_picker_page.dart
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -8,7 +7,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
 import 'package:ngibrit_in/widgets/button_primary.dart';
-import 'package:ngibrit_in/pages/search_location_page.dart'; // [FIX] Import halaman pencarian
+import 'package:ngibrit_in/pages/search_location_page.dart';
 
 class MapPickerPage extends StatefulWidget {
   final LatLng? initialPosition;
@@ -39,8 +38,6 @@ class _MapPickerPageState extends State<MapPickerPage> {
       }
     });
   }
-
-  // 1. Logic GPS Button
   Future<void> _locateUser() async {
     setState(() => _isLocating = true);
     try {
@@ -62,13 +59,11 @@ class _MapPickerPageState extends State<MapPickerPage> {
       selectedLatLng = newPos;
       _reverseGeocode(newPos);
     } catch (e) {
-      // Handle error
     } finally {
       if (mounted) setState(() => _isLocating = false);
     }
   }
 
-  // 2. Logic Drag Map
   void _onMapPositionChanged(MapCamera camera, bool hasGesture) {
     if (hasGesture) {
       if (debounceTimer?.isActive ?? false) debounceTimer!.cancel();
@@ -99,20 +94,16 @@ class _MapPickerPageState extends State<MapPickerPage> {
       if (mounted) setState(() => selectedAddress = "Gagal memuat alamat");
     }
   }
-
-  // [FIX] Fungsi Buka Pencarian
   void _openSearch() {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => SearchLocationPage(
           onSelected: (latLng, address) {
-            // Callback dari halaman pencarian
             setState(() {
               selectedLatLng = latLng;
               selectedAddress = address;
             });
-            // Pindahkan kamera peta ke lokasi baru
             _mapController.move(latLng, 17);
           },
         ),
@@ -138,22 +129,17 @@ class _MapPickerPageState extends State<MapPickerPage> {
               ),
             ],
           ),
-
-          // PIN STATIC DI TENGAH
           const Center(
             child: Padding(
               padding: EdgeInsets.only(bottom: 40),
               child: Icon(Icons.location_on, size: 50, color: Colors.red),
             ),
           ),
-
-          // [FIX] SEARCH BAR DENGAN GESTURE DETECTOR
           Positioned(
             top: 50,
             left: 20,
             right: 20,
             child: GestureDetector(
-              // <-- Tambahkan ini agar bisa diklik
               onTap: _openSearch,
               child: Container(
                 padding: const EdgeInsets.symmetric(
@@ -182,8 +168,6 @@ class _MapPickerPageState extends State<MapPickerPage> {
               ),
             ),
           ),
-
-          // GPS BUTTON (Kanan Bawah)
           Positioned(
             bottom: 100,
             right: 20,
@@ -195,8 +179,6 @@ class _MapPickerPageState extends State<MapPickerPage> {
                   : const Icon(Icons.my_location, color: Colors.blue),
             ),
           ),
-
-          // CONFIRM BUTTON
           Positioned(
             bottom: 24,
             left: 24,

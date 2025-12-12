@@ -8,6 +8,8 @@ import 'package:ngibrit_in/pages/fragments/browse_fragment.dart';
 import 'package:ngibrit_in/pages/fragments/orders_fragment.dart';
 import 'package:ngibrit_in/pages/fragments/settings_fragment.dart';
 import 'package:ngibrit_in/source/chat_source.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:ngibrit_in/models/chat.dart';
 
 class DiscoverPage extends StatefulWidget {
   const DiscoverPage({super.key});
@@ -17,7 +19,6 @@ class DiscoverPage extends StatefulWidget {
 }
 
 class _DiscoverPageState extends State<DiscoverPage> {
-  // [FIX] Menggunakan List<Widget> agar state terjaga saat berpindah tab
   List<Widget> fragments = [];
   final fragmentIndex = 0.obs;
   late final Account account;
@@ -27,7 +28,6 @@ class _DiscoverPageState extends State<DiscoverPage> {
   void initState() {
     super.initState();
 
-    // [LOGIC] Cek arguments untuk navigasi awal (Tab 0 atau Tab 1)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final args = ModalRoute.of(context)?.settings.arguments;
       if (args != null && args is Map && args.containsKey('initialIndex')) {
@@ -50,6 +50,185 @@ class _DiscoverPageState extends State<DiscoverPage> {
     });
   }
 
+  void _showEmergencyModal(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+              const Gap(24),
+              const Text(
+                'Bantuan Darurat',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xff070623),
+                ),
+              ),
+              const Gap(8),
+              const Text(
+                'Pilih kendala yang kamu alami. Lokasimu akan dikirim otomatis ke CS.',
+                style: TextStyle(fontSize: 14, color: Color(0xff838384)),
+              ),
+              const Gap(24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _buildEmergencyItem(Icons.tire_repair, 'Ban Bocor'),
+                  _buildEmergencyItem(Icons.build_circle, 'Mesin Mogok'),
+                  _buildEmergencyItem(Icons.local_hospital, 'Kecelakaan'),
+                ],
+              ),
+              const Gap(30),
+              SizedBox(
+                width: double.infinity,
+                child: TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    backgroundColor: const Color(0xffF8F8FA),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(50),
+                    ),
+                  ),
+                  child: const Text(
+                    'Batal',
+                    style: TextStyle(
+                      color: Color(0xff838384),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+              const Gap(10),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildEmergencyItem(IconData iconData, String label) {
+    return GestureDetector(
+      onTap: () => _sendEmergencySignal(label),
+      child: Container(
+        width: 100,
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xffE5E7EB)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xffFFF1F3),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(iconData, color: const Color(0xffFF2055), size: 24),
+            ),
+            const Gap(12),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Color(0xff070623),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _sendEmergencySignal(String issue) async {
+    Navigator.pop(context);
+    Info.showLoading(context, message: "Mendapatkan lokasi...");
+
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        Info.hideLoading();
+        Info.error("Mohon aktifkan GPS/Lokasi Anda");
+        return;
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          Info.hideLoading();
+          Info.error("Izin lokasi ditolak");
+          return;
+        }
+      }
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      String mapsLink =
+          "https://www.google.com/maps/search/?api=1&query=${position.latitude},${position.longitude}";
+
+      String messageText =
+          "🚨 *DARURAT: $issue* 🚨\n\n"
+          "Saya butuh bantuan di lokasi ini:\n$mapsLink";
+
+      await ChatSource.openChatRoom(account.uid, account.name);
+
+      Chat chat = Chat(
+        roomId: account.uid,
+        message: messageText,
+        receiverId: 'cs',
+        senderId: account.uid,
+        bikeDetail: null,
+      );
+      await ChatSource.send(chat, account.uid);
+
+      Info.hideLoading();
+      if (mounted) {
+        Navigator.pushNamed(
+          context,
+          '/chatting',
+          arguments: {'uid': account.uid, 'userName': account.name},
+        );
+      }
+    } catch (e) {
+      Info.hideLoading();
+      Info.error("Gagal mengirim sinyal: $e");
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (isLoading)
@@ -57,8 +236,6 @@ class _DiscoverPageState extends State<DiscoverPage> {
 
     return Scaffold(
       extendBody: true,
-      // [FIX] Gunakan IndexedStack agar fragment tidak di-rebuild terus menerus (Opsional, tapi bagus untuk performa)
-      // Namun untuk kasus ini kita pakai Obx sesuai kode awal Anda agar simpel
       body: Obx(() => fragments[fragmentIndex.value]),
 
       bottomNavigationBar: Obx(() {
@@ -171,15 +348,31 @@ class _DiscoverPageState extends State<DiscoverPage> {
   }
 
   Widget buildItemCircle() {
-    return Container(
-      height: 50,
-      width: 50,
-      decoration: const BoxDecoration(
-        shape: BoxShape.circle,
-        color: Color(0xffFFBC1C),
-      ),
-      child: UnconstrainedBox(
-        child: Image.asset('assets/ic_status.png', height: 24, width: 24),
+    return GestureDetector(
+      onTap: () {
+        _showEmergencyModal(context);
+      },
+      child: Container(
+        height: 52,
+        width: 52,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: const Color(0xffFF2055),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xffFFBC1C).withOpacity(0.4),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: UnconstrainedBox(
+          child: const Icon(
+            Icons.support_agent_rounded,
+            color: Colors.white,
+            size: 28,
+          ),
+        ),
       ),
     );
   }
