@@ -15,14 +15,16 @@ class ChatSource {
       return;
     }
 
-    // fisrt time chat room
     await FirebaseFirestore.instance.collection('CS').doc(uid).set({
       'roomId': uid,
       'name': userName,
       'lastMessage': 'Welcome to Ngibrit.in',
       'newFromUser': false,
       'newFromCS': true,
+      'lastTime':
+          FieldValue.serverTimestamp(),
     });
+
     await FirebaseFirestore.instance
         .collection('CS')
         .doc(uid)
@@ -42,7 +44,10 @@ class ChatSource {
       'lastMessage': chat.message,
       'newFromUser': true,
       'newFromCS': false,
+      'lastTime':
+          FieldValue.serverTimestamp(),
     });
+
     await FirebaseFirestore.instance
         .collection('CS')
         .doc(uid)
