@@ -22,6 +22,11 @@ class OrderModel {
   final String status;
   final Timestamp createdAt;
 
+  // [BARU] Field Tambahan
+  final num deliveryFee;
+  final num securityDeposit;
+  final bool isDelivery;
+
   OrderModel({
     required this.id,
     required this.userId,
@@ -43,6 +48,10 @@ class OrderModel {
     required this.paymentMethod,
     required this.status,
     required this.createdAt,
+    // [BARU] Initialize
+    this.deliveryFee = 0,
+    this.securityDeposit = 0,
+    this.isDelivery = false,
   });
 
   factory OrderModel.fromJson(Map<String, dynamic> json, String docId) {
@@ -67,10 +76,13 @@ class OrderModel {
       paymentMethod: json['paymentMethod'] ?? '',
       status: json['status'] ?? 'Dikirim',
       createdAt: json['createdAt'] ?? Timestamp.now(),
+      // [BARU] Parse
+      deliveryFee: json['deliveryFee'] ?? 0,
+      securityDeposit: json['securityDeposit'] ?? 0,
+      isDelivery: json['isDelivery'] ?? false,
     );
   }
 
-  
   Map<String, dynamic> toJson() {
     return {
       'userId': userId,
@@ -92,6 +104,10 @@ class OrderModel {
       'paymentMethod': paymentMethod,
       'status': status,
       'createdAt': createdAt,
+      // [BARU] Save
+      'deliveryFee': deliveryFee,
+      'securityDeposit': securityDeposit,
+      'isDelivery': isDelivery,
     };
   }
 }

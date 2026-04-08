@@ -22,13 +22,17 @@ class _MapPickerPageState extends State<MapPickerPage> {
   LatLng? selectedLatLng;
   String selectedAddress = "Mencari lokasi...";
   Timer? debounceTimer;
+
   bool _isLocating = false;
+  bool _isValidLocation = true;
+  bool _isAddressLoading = false;
 
   @override
   void initState() {
     super.initState();
+    // Default Monas jika null
     selectedLatLng =
-        widget.initialPosition ?? const LatLng(-6.200000, 106.816666);
+        widget.initialPosition ?? const LatLng(-6.175392, 106.827153);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (widget.initialPosition != null) {
@@ -38,6 +42,7 @@ class _MapPickerPageState extends State<MapPickerPage> {
       }
     });
   }
+
   Future<void> _locateUser() async {
     setState(() => _isLocating = true);
     try {
@@ -56,9 +61,10 @@ class _MapPickerPageState extends State<MapPickerPage> {
       LatLng newPos = LatLng(pos.latitude, pos.longitude);
 
       _mapController.move(newPos, 17);
-      selectedLatLng = newPos;
+      setState(() => selectedLatLng = newPos);
       _reverseGeocode(newPos);
     } catch (e) {
+      debugPrint("Error location: $e");
     } finally {
       if (mounted) setState(() => _isLocating = false);
     }
@@ -67,8 +73,13 @@ class _MapPickerPageState extends State<MapPickerPage> {
   void _onMapPositionChanged(MapCamera camera, bool hasGesture) {
     if (hasGesture) {
       if (debounceTimer?.isActive ?? false) debounceTimer!.cancel();
-      debounceTimer = Timer(const Duration(milliseconds: 800), () {
+
+      setState(() {
         selectedLatLng = camera.center;
+        _isAddressLoading = true;
+      });
+
+      debounceTimer = Timer(const Duration(milliseconds: 800), () {
         _reverseGeocode(camera.center);
       });
     }
@@ -76,7 +87,7 @@ class _MapPickerPageState extends State<MapPickerPage> {
 
   Future<void> _reverseGeocode(LatLng latLng) async {
     final url =
-        "https://nominatim.openstreetmap.org/reverse?format=json&lat=${latLng.latitude}&lon=${latLng.longitude}&accept-language=id";
+        "https://nominatim.openstreetmap.org/reverse?format=json&lat=${latLng.latitude}&lon=${latLng.longitude}&accept-language=id&addressdetails=1";
     try {
       final res = await http.get(
         Uri.parse(url),
@@ -84,16 +95,41 @@ class _MapPickerPageState extends State<MapPickerPage> {
       );
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
-        if (mounted)
-          setState(
-            () => selectedAddress =
-                data["display_name"] ?? "Lokasi tidak diketahui",
-          );
+        String displayName = data["display_name"] ?? "Lokasi tidak diketahui";
+
+        // [FIX WARNING DISTRICT]
+        Map<String, dynamic> addressDetails = data['address'] ?? {};
+        String state = (addressDetails['state'] ?? '').toString().toLowerCase();
+        String city = (addressDetails['city'] ?? '').toString().toLowerCase();
+        String district = (addressDetails['town'] ?? '')
+            .toString()
+            .toLowerCase();
+
+        // Logika: Harus ada kata 'jakarta' di provinsi, kota, ATAU distrik
+        bool isJakarta =
+            state.contains('jakarta') ||
+            city.contains('jakarta') ||
+            district.contains('jakarta') ||
+            displayName.toLowerCase().contains('jakarta');
+
+        if (mounted) {
+          setState(() {
+            selectedAddress = displayName;
+            _isValidLocation = isJakarta;
+            _isAddressLoading = false;
+          });
+        }
       }
     } catch (_) {
-      if (mounted) setState(() => selectedAddress = "Gagal memuat alamat");
+      if (mounted) {
+        setState(() {
+          selectedAddress = "Gagal memuat alamat";
+          _isAddressLoading = false;
+        });
+      }
     }
   }
+
   void _openSearch() {
     Navigator.push(
       context,
@@ -103,8 +139,10 @@ class _MapPickerPageState extends State<MapPickerPage> {
             setState(() {
               selectedLatLng = latLng;
               selectedAddress = address;
+              _isAddressLoading = true;
             });
             _mapController.move(latLng, 17);
+            _reverseGeocode(latLng);
           },
         ),
       ),
@@ -116,6 +154,7 @@ class _MapPickerPageState extends State<MapPickerPage> {
     return Scaffold(
       body: Stack(
         children: [
+          // A. PETA
           FlutterMap(
             mapController: _mapController,
             options: MapOptions(
@@ -129,71 +168,183 @@ class _MapPickerPageState extends State<MapPickerPage> {
               ),
             ],
           ),
+
+          // B. PIN CENTER (Marker Statis)
           const Center(
             child: Padding(
               padding: EdgeInsets.only(bottom: 40),
-              child: Icon(Icons.location_on, size: 50, color: Colors.red),
+              child: Icon(
+                Icons.location_on,
+                size: 50,
+                color: Color(0xffFF2055),
+              ),
             ),
           ),
+
+          // C. SEARCH BAR (Top)
           Positioned(
             top: 50,
             left: 20,
             right: 20,
-            child: GestureDetector(
-              onTap: _openSearch,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
+            child: Row(
+              children: [
+                GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(blurRadius: 5, color: Colors.black12),
+                      ],
+                    ),
+                    child: const Icon(Icons.arrow_back, color: Colors.black),
+                  ),
                 ),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(30),
-                  boxShadow: [BoxShadow(blurRadius: 10, color: Colors.black12)],
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.search, color: Colors.grey),
-                    const Gap(10),
-                    Expanded(
-                      child: Text(
-                        selectedAddress,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: Colors.black87),
+                const Gap(10),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: _openSearch,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(30),
+                        boxShadow: [
+                          const BoxShadow(
+                            blurRadius: 10,
+                            color: Colors.black12,
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.search, color: Colors.grey),
+                          const Gap(10),
+                          Expanded(
+                            child: Text(
+                              _isAddressLoading
+                                  ? "Memuat alamat..."
+                                  : selectedAddress,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(color: Colors.black87),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ],
+                  ),
                 ),
-              ),
+              ],
             ),
           ),
+
+          // D. BUTTON MY LOCATION (Posisi Dinaikkan agar tidak tertutup)
           Positioned(
-            bottom: 100,
+            bottom:
+                240, // [FIX] Dinaikkan dari 100 ke 240 agar aman dari bottom sheet
             right: 20,
             child: FloatingActionButton(
               backgroundColor: Colors.white,
               onPressed: _locateUser,
               child: _isLocating
-                  ? const CircularProgressIndicator()
-                  : const Icon(Icons.my_location, color: Colors.blue),
+                  ? const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.my_location, color: Color(0xff4A1DFF)),
             ),
           ),
+
+          // E. BOTTOM SHEET (Panel Bawah)
           Positioned(
-            bottom: 24,
-            left: 24,
-            right: 24,
-            child: ButtonPrimary(
-              text: "Gunakan Lokasi Ini",
-              onTap: () {
-                if (selectedLatLng != null) {
-                  Navigator.pop(context, {
-                    'lat': selectedLatLng!.latitude,
-                    'lng': selectedLatLng!.longitude,
-                    'address': selectedAddress,
-                  });
-                }
-              },
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                boxShadow: [BoxShadow(blurRadius: 20, color: Colors.black12)],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    "Lokasi Terpilih:",
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                  const Gap(4),
+                  Text(
+                    _isAddressLoading
+                        ? "Sedang memvalidasi..."
+                        : selectedAddress,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xff070623),
+                    ),
+                  ),
+                  const Gap(16),
+
+                  // Tombol Konfirmasi / Warning
+                  if (_isValidLocation)
+                    ButtonPrimary(
+                      text: "Gunakan Lokasi Ini",
+                      onTap: _isAddressLoading
+                          ? () {}
+                          : () {
+                              if (selectedLatLng != null) {
+                                Navigator.pop(context, {
+                                  'lat': selectedLatLng!.latitude,
+                                  'lng': selectedLatLng!.longitude,
+                                  'address': selectedAddress,
+                                });
+                              }
+                            },
+                    )
+                  else
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xffFFF1F3),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: const Color(0xffFF2055).withOpacity(0.3),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.error_outline,
+                            color: Color(0xffFF2055),
+                          ),
+                          const Gap(10),
+                          const Expanded(
+                            child: Text(
+                              "Lokasi di luar jangkauan. Silakan pilih lokasi area DKI Jakarta.",
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Color(0xffFF2055),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
         ],

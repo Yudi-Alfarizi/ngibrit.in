@@ -52,6 +52,7 @@ class _PINPageState extends State<PINPage> {
 
     Info.showLoading(context, message: "Memproses Pesanan...");
 
+    // [FIX] Menambahkan parameter baru (deliveryFee, securityDeposit, isDelivery)
     final result = await orderController.createOrder(
       bike: bikeData,
       startDate: args['startDate'],
@@ -66,11 +67,16 @@ class _PINPageState extends State<PINPage> {
       returnLocation: args['return'] ?? '-',
       agency: args['agency'] ?? '-',
       insuranceName: args['insurance'] ?? '-',
-      subTotal:
-          args['totalPrice'] *
-          0.7,
-      tax: args['totalPrice'] * 0.11, 
+
+      // Perhitungan sederhana (bisa disesuaikan jika data dikirim dari checkout)
+      subTotal: args['totalPrice'] * 0.7,
+      tax: args['totalPrice'] * 0.11,
       insurancePrice: 25000,
+
+      // [BARU] Parameter Wajib yang sebelumnya Error
+      deliveryFee: args['deliveryFee'] ?? 0,
+      securityDeposit: args['securityDeposit'] ?? 0,
+      isDelivery: args['isDelivery'] ?? false,
     );
 
     Info.hideLoading();

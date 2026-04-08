@@ -14,6 +14,7 @@ import 'package:ngibrit_in/pages/signin_page.dart';
 import 'package:ngibrit_in/pages/signup_page.dart';
 import 'package:ngibrit_in/pages/splash_screen.dart';
 import 'package:ngibrit_in/pages/success_booking_page.dart';
+import 'package:ngibrit_in/pages/upload_kyc_page.dart';
 import 'firebase_options.dart';
 import 'package:flutter/material.dart';
 import 'package:ngibrit_in/pages/map_picker_page.dart';
@@ -85,6 +86,7 @@ class MyApp extends StatelessWidget {
           Map data = ModalRoute.of(context)!.settings.arguments as Map;
           return ChattingPage(uid: data['uid'], userName: data['userName']);
         },
+        '/upload-kyc': (context) => const UploadKycPage(),
       },
       onGenerateRoute: (settings) {
         if (settings.name == '/map-picker') {

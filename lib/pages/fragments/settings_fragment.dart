@@ -14,7 +14,6 @@ class _SettingsFragmentState extends State<SettingsFragment> {
   logout() {
     DSession.removeUser().then((removed) {
       if (!removed) return;
-
       Navigator.pushReplacementNamed(context, '/signin');
     });
   }
@@ -24,7 +23,7 @@ class _SettingsFragmentState extends State<SettingsFragment> {
     return ListView(
       padding: const EdgeInsets.all(0),
       children: [
-        Gap(30+MediaQuery.of(context).padding.top),
+        Gap(30 + MediaQuery.of(context).padding.top),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Text(
@@ -48,67 +47,46 @@ class _SettingsFragmentState extends State<SettingsFragment> {
             children: [
               buildProfile(),
               const Gap(30),
-              buildItemSetting(
-                'assets/ic_profile.png',
-                'Edit Profile',
-                null),
+              buildItemSetting('assets/ic_profile.png', 'Edit Profile', null),
               const Gap(20),
               buildItemSetting(
                 'assets/wallet.png',
                 'Dompet Digital Saya',
-                null),
+                null,
+              ),
               const Gap(20),
               buildItemSetting(
-                'assets/ic_rate.png', 
-                'Nilai Aplikasi Ini', 
-                null),
+                'assets/ic_rate.png',
+                'Nilai Aplikasi Ini',
+                null,
+              ),
               const Gap(20),
-              buildItemSetting(
-                'assets/ic_key.png', 
-                'Ubah Kata Sandi', 
-                null),
+              buildItemSetting('assets/ic_key.png', 'Ubah Kata Sandi', null),
               const Gap(20),
-              buildItemSetting(
-                'assets/ic_key.png', 
-                'Ubah Pini', 
-                null),
+              buildItemSetting('assets/ic_key.png', 'Ubah Pin', null),
               const Gap(20),
-              buildItemSetting(
-                'assets/ic_logout.png', 
-                'Keluar', 
-                logout),
+              buildItemSetting('assets/ic_logout.png', 'Keluar', logout),
             ],
           ),
-        )
+        ),
       ],
     );
   }
 
-  Widget buildItemSetting(
-    String icon,
-    String name,
-    VoidCallback? onTap,
-  ) {
+  Widget buildItemSetting(String icon, String name, VoidCallback? onTap) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
         height: 52,
-        padding: EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
         decoration: BoxDecoration(
           color: Colors.transparent,
           borderRadius: BorderRadius.circular(50),
-          border: Border.all(
-            color: const Color(0xffEFEEF7),
-            width: 1,
-          ),
+          border: Border.all(color: const Color(0xffEFEEF7), width: 1),
         ),
         child: Row(
           children: [
-            Image.asset(
-              icon,
-              height: 24,
-              width: 24,
-            ),
+            Image.asset(icon, height: 24, width: 24),
             const Gap(14),
             Expanded(
               child: Text(
@@ -120,11 +98,7 @@ class _SettingsFragmentState extends State<SettingsFragment> {
                 ),
               ),
             ),
-            Image.asset(
-              'assets/ic_arrow_next.png',
-              height: 20,
-              width: 20,
-            ),
+            Image.asset('assets/ic_arrow_next.png', height: 20, width: 20),
           ],
         ),
       ),
@@ -135,30 +109,68 @@ class _SettingsFragmentState extends State<SettingsFragment> {
     return FutureBuilder(
       future: DSession.getUser(),
       builder: (context, snapshot) {
-        if(snapshot.connectionState==ConnectionState.waiting){
-          return Center(child: CircularProgressIndicator());
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
         }
+        if (!snapshot.hasData) return const SizedBox(); // Handle jika null
+
         Account account = Account.fromJson(Map.from(snapshot.data!));
+
         return Row(
           children: [
-            Image.asset(
-              'assets/profile.png',
-              width: 50,
-              height: 50,
-            ),
+            Image.asset('assets/profile.png', width: 50, height: 50),
             const Gap(20),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  account.name,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xff070623),
-                  ),
+                Row(
+                  children: [
+                    Text(
+                      account.name,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xff070623),
+                      ),
+                    ),
+                    const Gap(6),
+                    // [BARU] Badge Verifikasi
+                    if (account.isVerified)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xffE8F9EE),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: const Color(0xff1AC75A),
+                            width: 0.5,
+                          ),
+                        ),
+                        child: Row(
+                          children: const [
+                            Icon(
+                              Icons.check_circle,
+                              size: 10,
+                              color: Color(0xff1AC75A),
+                            ),
+                            Gap(4),
+                            Text(
+                              "Terverifikasi",
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xff1AC75A),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
                 ),
-                Gap(2),
+                const Gap(2),
                 Text(
                   account.email,
                   style: const TextStyle(
@@ -168,10 +180,10 @@ class _SettingsFragmentState extends State<SettingsFragment> {
                   ),
                 ),
               ],
-            )
+            ),
           ],
         );
-      }
+      },
     );
   }
 }

@@ -7,7 +7,6 @@ import 'package:ngibrit_in/models/order_model.dart';
 import 'package:ngibrit_in/services/payment_service.dart';
 
 class OrderController extends GetxController {
-
   Future<Map<String, dynamic>> createOrder({
     required Bike bike,
     required String startDate,
@@ -24,6 +23,10 @@ class OrderController extends GetxController {
     required num insurancePrice,
     required num tax,
     required num subTotal,
+    // [BARU] Parameter Tambahan
+    required num deliveryFee,
+    required num securityDeposit,
+    required bool isDelivery,
   }) async {
     try {
       final userSession = await DSession.getUser();
@@ -74,6 +77,11 @@ class OrderController extends GetxController {
 
         status: initialStatus,
         createdAt: Timestamp.now(),
+
+        // [BARU] Simpan Data Tambahan
+        deliveryFee: deliveryFee,
+        securityDeposit: securityDeposit,
+        isDelivery: isDelivery,
       );
 
       await docRef.set(newOrder.toJson());
@@ -94,8 +102,7 @@ class OrderController extends GetxController {
             'success': true,
             'isMidtrans': true,
             'redirectUrl': paymentData['redirect_url'],
-            'orderId':
-                orderId,
+            'orderId': orderId,
             'bike': bike,
           };
         } else {

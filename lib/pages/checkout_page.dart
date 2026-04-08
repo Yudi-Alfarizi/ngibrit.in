@@ -20,11 +20,16 @@ class CheckoutPage extends StatefulWidget {
     required this.bike,
     required this.startDate,
     required this.endDate,
+    // [BARU] Parameter tambahan untuk biaya antar
+    this.deliveryFee = 0,
+    this.isDelivery = false,
   });
 
   final Bike bike;
   final String startDate;
   final String endDate;
+  final num deliveryFee;
+  final bool isDelivery;
 
   @override
   State<CheckoutPage> createState() => _CheckoutPageState();
@@ -36,6 +41,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
   num priceSubTotal = 0;
   num priceInsurance = 0;
   num priceTax = 0;
+
+  // [BARU] Biaya Jaminan (Refundable)
+  final num securityDeposit = 150000;
   int durationDays = 0;
 
   String? selectedPayment;
@@ -70,16 +78,27 @@ class _CheckoutPageState extends State<CheckoutPage> {
       final s = DateFormat('dd MMM yyyy').parseStrict(widget.startDate);
       final e = DateFormat('dd MMM yyyy').parseStrict(widget.endDate);
       final diff = e.difference(s).inDays;
-      durationDays = diff >= 1 ? diff : 0;
+      durationDays = diff >= 1 ? diff : 1; // Minimal 1 hari
     } catch (_) {
-      durationDays = 0;
+      durationDays = 1;
     }
 
     final pricePerDay = widget.bike.price.toDouble();
     priceSubTotal = pricePerDay * durationDays;
+
+    // Asuransi 20% dari Subtotal (Bisa diubah jadi flat jika mau)
     priceInsurance = priceSubTotal * 0.20;
+
+    // Pajak 11%
     priceTax = priceSubTotal * 0.11;
-    grandTotal = priceSubTotal + priceInsurance + priceTax;
+
+    // [BARU] Rumus Total Akhir
+    grandTotal =
+        priceSubTotal +
+        priceInsurance +
+        priceTax +
+        widget.deliveryFee +
+        securityDeposit;
   }
 
   void showErrorToast(String message) {
@@ -120,6 +139,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Recalculate saat build untuk memastikan data konsisten
     _calculatePriceDetails();
 
     final headerHeight =
@@ -193,6 +213,10 @@ class _CheckoutPageState extends State<CheckoutPage> {
               insurancePrice: priceInsurance,
               tax: priceTax,
               subTotal: priceSubTotal,
+              // [BARU] Kirim data tambahan
+              deliveryFee: widget.deliveryFee,
+              securityDeposit: securityDeposit,
+              isDelivery: widget.isDelivery,
             );
 
             Info.hideLoading();
@@ -206,10 +230,14 @@ class _CheckoutPageState extends State<CheckoutPage> {
                   await Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => MidtransWebViewPage(url: redirectUrl),
+                      builder: (context) =>
+                          MidtransWebViewPage(url: redirectUrl),
                     ),
                   );
-                  Info.showLoading(context, message: "Verifikasi Pembayaran...");
+                  Info.showLoading(
+                    context,
+                    message: "Verifikasi Pembayaran...",
+                  );
                   await orderController.updateOrderStatus(orderId, 'Dikirim');
                   Info.hideLoading();
                   Navigator.pushNamedAndRemoveUntil(
@@ -255,6 +283,10 @@ class _CheckoutPageState extends State<CheckoutPage> {
             'return': argsFromBooking['return'],
             'agency': argsFromBooking['agency'],
             'insurance': argsFromBooking['insurance'],
+            // [BARU] Data untuk PIN Page
+            'deliveryFee': widget.deliveryFee,
+            'securityDeposit': securityDeposit,
+            'isDelivery': widget.isDelivery,
           };
 
           Navigator.pushNamed(context, '/pin', arguments: fullBookingData);
@@ -332,6 +364,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
           ),
         ),
         const Gap(24),
+        // Kartu Saldo (Tampilan Saja)
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: FutureBuilder(
@@ -431,15 +464,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
       padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
       child: Column(
         children: [
-          buildItemDetails1(
-            'Harga',
-            NumberFormat.currency(
-              decimalDigits: 0,
-              locale: 'id_ID',
-              symbol: 'Rp ',
-            ).format(widget.bike.price),
-            '/Hari',
-          ),
+          buildItemDetails1('Harga', _fmt(widget.bike.price), '/Hari'),
           const Gap(14),
           buildItemDetails2('Tanggal Mulai', widget.startDate),
           const Gap(14),
@@ -447,44 +472,48 @@ class _CheckoutPageState extends State<CheckoutPage> {
           const Gap(14),
           buildItemDetails1('Durasi', '$durationDays', ' Hari'),
           const Gap(14),
-          buildItemDetails2(
-            'Sub Total Harga',
-            NumberFormat.currency(
-              decimalDigits: 0,
-              locale: 'id_ID',
-              symbol: 'Rp ',
-            ).format(priceSubTotal),
-          ),
+          buildItemDetails2('Sub Total Harga', _fmt(priceSubTotal)),
           const Gap(14),
-          buildItemDetails2(
-            'Asuransi 20%',
-            NumberFormat.currency(
-              decimalDigits: 0,
-              locale: 'id_ID',
-              symbol: 'Rp ',
-            ).format(priceInsurance),
-          ),
+          buildItemDetails2('Asuransi 20%', _fmt(priceInsurance)),
           const Gap(14),
-          buildItemDetails2(
-            'Tax 11%',
-            NumberFormat.currency(
-              decimalDigits: 0,
-              locale: 'id_ID',
-              symbol: 'Rp ',
-            ).format(priceTax),
-          ),
+          buildItemDetails2('Tax 11%', _fmt(priceTax)),
+
+          // [BARU] Tampilkan Ongkir & Deposit jika ada
+          if (widget.isDelivery) ...[
+            const Gap(14),
+            buildItemDetails2('Biaya Antar', _fmt(widget.deliveryFee)),
+          ],
+
           const Gap(14),
-          buildItemDetails3(
-            'Total Harga',
-            NumberFormat.currency(
-              decimalDigits: 0,
-              locale: 'id_ID',
-              symbol: 'Rp ',
-            ).format(grandTotal),
+          buildItemDetails2('Deposit Jaminan', _fmt(securityDeposit)),
+          const Gap(4),
+          const Align(
+            alignment: Alignment.centerRight,
+            child: Text(
+              "*Deposit akan dikembalikan setelah sewa selesai",
+              style: TextStyle(
+                fontSize: 10,
+                color: Colors.grey,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
           ),
+
+          const Divider(height: 30, thickness: 1),
+
+          buildItemDetails3('Total Pembayaran', _fmt(grandTotal)),
         ],
       ),
     );
+  }
+
+  // Helper Format Currency
+  String _fmt(num price) {
+    return NumberFormat.currency(
+      decimalDigits: 0,
+      locale: 'id_ID',
+      symbol: 'Rp ',
+    ).format(price);
   }
 
   Widget buildItemDetails1(String title, String data, String unit) => Row(
