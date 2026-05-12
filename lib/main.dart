@@ -18,16 +18,19 @@ import 'package:ngibrit_in/pages/upload_kyc_page.dart';
 import 'firebase_options.dart';
 import 'package:flutter/material.dart';
 import 'package:ngibrit_in/pages/map_picker_page.dart';
-
+import 'package:ngibrit_in/pages/notification_page.dart';
+import 'package:ngibrit_in/services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-  SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-  ]).then((value) {
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // [PERBAIKAN CRITICAL P0]: Menghapus 'await' agar startup tidak tertahan oleh inisialisasi plugin
+  NotificationService.init().catchError((_) {});
+
+  SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]).then((
+    _,
+  ) {
     runApp(const MyApp());
   });
 }
@@ -46,10 +49,12 @@ class MyApp extends StatelessWidget {
       home: FutureBuilder(
         future: DSession.getUser(),
         builder: (context, snapshot) {
-          if(snapshot.connectionState==ConnectionState.waiting) {
-            return const CircularProgressIndicator();
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            );
           }
-          if(snapshot.data==null) return const SplashScreen();
+          if (snapshot.data == null) return const SplashScreen();
           return const DiscoverPage();
         },
       ),
@@ -57,12 +62,11 @@ class MyApp extends StatelessWidget {
         '/discover': (context) => const DiscoverPage(),
         '/signup': (context) => const SignupPage(),
         '/signin': (context) => const SigninPage(),
-
+        '/notifications': (context) => const NotificationPage(),
         '/detail': (context) {
           String bikeId = ModalRoute.of(context)!.settings.arguments as String;
           return DetailPage(bikeId: bikeId);
         },
-
         '/booking': (context) {
           Bike bike = ModalRoute.of(context)!.settings.arguments as Bike;
           return BookingPage(bike: bike);
@@ -75,6 +79,8 @@ class MyApp extends StatelessWidget {
             bike: args['bike'],
             startDate: args['startDate'],
             endDate: args['endDate'],
+            deliveryFee: args['deliveryFee'] ?? 0,
+            isDelivery: args['isDelivery'] ?? false,
           );
         },
         '/pin': (context) => const PINPage(),
@@ -93,7 +99,6 @@ class MyApp extends StatelessWidget {
           final LatLng? initialPos = (settings.arguments is LatLng)
               ? settings.arguments as LatLng
               : null;
-
           return MaterialPageRoute(
             builder: (ctx) => MapPickerPage(initialPosition: initialPos),
           );

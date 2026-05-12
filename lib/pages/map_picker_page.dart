@@ -30,7 +30,6 @@ class _MapPickerPageState extends State<MapPickerPage> {
   @override
   void initState() {
     super.initState();
-    // Default Monas jika null
     selectedLatLng =
         widget.initialPosition ?? const LatLng(-6.175392, 106.827153);
 
@@ -97,25 +96,27 @@ class _MapPickerPageState extends State<MapPickerPage> {
         final data = jsonDecode(res.body);
         String displayName = data["display_name"] ?? "Lokasi tidak diketahui";
 
-        // [FIX WARNING DISTRICT]
         Map<String, dynamic> addressDetails = data['address'] ?? {};
         String state = (addressDetails['state'] ?? '').toString().toLowerCase();
-        String city = (addressDetails['city'] ?? '').toString().toLowerCase();
-        String district = (addressDetails['town'] ?? '')
-            .toString()
-            .toLowerCase();
 
-        // Logika: Harus ada kata 'jakarta' di provinsi, kota, ATAU distrik
-        bool isJakarta =
-            state.contains('jakarta') ||
-            city.contains('jakarta') ||
-            district.contains('jakarta') ||
-            displayName.toLowerCase().contains('jakarta');
+        // [PERBAIKAN] Cakupan Seluruh Pulau Jawa
+        List<String> javaProvinces = [
+          'banten',
+          'jakarta',
+          'jawa barat',
+          'jawa tengah',
+          'yogyakarta',
+          'jawa timur',
+        ];
+
+        bool isInJava =
+            javaProvinces.any((prov) => state.contains(prov)) ||
+            displayName.toLowerCase().contains('jawa');
 
         if (mounted) {
           setState(() {
             selectedAddress = displayName;
-            _isValidLocation = isJakarta;
+            _isValidLocation = isInJava;
             _isAddressLoading = false;
           });
         }
@@ -154,7 +155,6 @@ class _MapPickerPageState extends State<MapPickerPage> {
     return Scaffold(
       body: Stack(
         children: [
-          // A. PETA
           FlutterMap(
             mapController: _mapController,
             options: MapOptions(
@@ -165,11 +165,10 @@ class _MapPickerPageState extends State<MapPickerPage> {
             children: [
               TileLayer(
                 urlTemplate: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+                userAgentPackageName: 'com.example.ngibrit_in',
               ),
             ],
           ),
-
-          // B. PIN CENTER (Marker Statis)
           const Center(
             child: Padding(
               padding: EdgeInsets.only(bottom: 40),
@@ -180,8 +179,6 @@ class _MapPickerPageState extends State<MapPickerPage> {
               ),
             ),
           ),
-
-          // C. SEARCH BAR (Top)
           Positioned(
             top: 50,
             left: 20,
@@ -243,11 +240,8 @@ class _MapPickerPageState extends State<MapPickerPage> {
               ],
             ),
           ),
-
-          // D. BUTTON MY LOCATION (Posisi Dinaikkan agar tidak tertutup)
           Positioned(
-            bottom:
-                240, // [FIX] Dinaikkan dari 100 ke 240 agar aman dari bottom sheet
+            bottom: 240,
             right: 20,
             child: FloatingActionButton(
               backgroundColor: Colors.white,
@@ -260,8 +254,6 @@ class _MapPickerPageState extends State<MapPickerPage> {
                   : const Icon(Icons.my_location, color: Color(0xff4A1DFF)),
             ),
           ),
-
-          // E. BOTTOM SHEET (Panel Bawah)
           Positioned(
             bottom: 0,
             left: 0,
@@ -295,8 +287,6 @@ class _MapPickerPageState extends State<MapPickerPage> {
                     ),
                   ),
                   const Gap(16),
-
-                  // Tombol Konfirmasi / Warning
                   if (_isValidLocation)
                     ButtonPrimary(
                       text: "Gunakan Lokasi Ini",
@@ -332,7 +322,7 @@ class _MapPickerPageState extends State<MapPickerPage> {
                           const Gap(10),
                           const Expanded(
                             child: Text(
-                              "Lokasi di luar jangkauan. Silakan pilih lokasi area DKI Jakarta.",
+                              "Lokasi di luar jangkauan. Silakan pilih area Pulau Jawa.",
                               style: TextStyle(
                                 fontSize: 12,
                                 color: Color(0xffFF2055),

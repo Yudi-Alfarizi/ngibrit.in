@@ -47,12 +47,10 @@ class _PINPageState extends State<PINPage> {
   void processPayment() async {
     final args =
         ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
-
     final Bike bikeData = args['bike'];
 
     Info.showLoading(context, message: "Memproses Pesanan...");
 
-    // [FIX] Menambahkan parameter baru (deliveryFee, securityDeposit, isDelivery)
     final result = await orderController.createOrder(
       bike: bikeData,
       startDate: args['startDate'],
@@ -62,18 +60,12 @@ class _PINPageState extends State<PINPage> {
       paymentMethod: args['paymentMethod'],
       userPhone: args['phone'] ?? '-',
       renterName: args['name'] ?? 'Guest',
-
       pickupLocation: args['pickup'] ?? '-',
       returnLocation: args['return'] ?? '-',
-      agency: args['agency'] ?? '-',
       insuranceName: args['insurance'] ?? '-',
-
-      // Perhitungan sederhana (bisa disesuaikan jika data dikirim dari checkout)
       subTotal: args['totalPrice'] * 0.7,
       tax: args['totalPrice'] * 0.11,
       insurancePrice: 25000,
-
-      // [BARU] Parameter Wajib yang sebelumnya Error
       deliveryFee: args['deliveryFee'] ?? 0,
       securityDeposit: args['securityDeposit'] ?? 0,
       isDelivery: args['isDelivery'] ?? false,
@@ -82,9 +74,8 @@ class _PINPageState extends State<PINPage> {
     Info.hideLoading();
 
     if (result['success'] == true) {
-      if (mounted) {
+      if (mounted)
         Navigator.pushNamed(context, '/success-booking', arguments: bikeData);
-      }
     } else {
       Info.error(result['message'] ?? "Gagal membuat pesanan.");
     }
@@ -120,7 +111,6 @@ class _PINPageState extends State<PINPage> {
             ),
           ),
           const Gap(50),
-
           Obx(() {
             if (!isComplete.value) return const SizedBox();
             return Padding(
@@ -131,7 +121,6 @@ class _PINPageState extends State<PINPage> {
               ),
             );
           }),
-
           const Gap(12),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),

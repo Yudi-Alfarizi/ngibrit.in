@@ -8,7 +8,7 @@ import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
-import 'package:latlong2/latlong.dart' as latLng; // Alias agar tidak bentrok
+import 'package:latlong2/latlong.dart' as latLng;
 import 'package:ngibrit_in/controllers/booking_status_controller.dart';
 import 'package:ngibrit_in/controllers/browse_featured_controller.dart';
 import 'package:ngibrit_in/controllers/browse_newest_controller.dart';
@@ -18,6 +18,10 @@ import 'package:ngibrit_in/models/order_model.dart';
 import 'package:ngibrit_in/source/order_source.dart';
 import 'package:extended_image/extended_image.dart';
 import 'package:ngibrit_in/widgets/failed_ui.dart';
+
+// [IMPORTS BARU]
+import 'package:ngibrit_in/models/hub.dart';
+import 'package:ngibrit_in/source/hub_source.dart';
 
 class BrowseFragment extends StatefulWidget {
   const BrowseFragment({super.key});
@@ -36,51 +40,81 @@ class _BrowseFragmentState extends State<BrowseFragment> {
   bool _isStatusVisible = false;
   Timer? _statusTimer;
 
-  // --- STATE LOKASI ---
   String _displayAddress = "Mencari lokasi...";
-  latLng.LatLng? _activeLocation; // Lokasi aktif untuk filter
+  latLng.LatLng? _activeLocation;
   Map<String, dynamic>? _nearestHub;
   bool _isLocationLoading = true;
+
+  String _selectedHubId = '';
+  String _selectedCategory = 'Semua';
+
+  // [PERBAIKAN DINAMIS]: Hub tidak di-hardcode lagi, hanya menyimpan index 0 sebagai filter "Semua"
+  List<Hub> _dynamicHubs = [];
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      browseFeaturedController.fetchFeatured();
-      browseNewestController.fetchNewest();
+      _fetchHubsAndInit(); // Panggil fetch hub pertama kali
       _fetchUserDataAndActiveOrder();
       _checkFlashMessage();
-      _initGPSLocation(); // Start awal pakai GPS
     });
   }
 
-  // --- 1. LOGIC LOKASI (GPS START) ---
+  // [FUNGSI BARU]: Mengambil data dari Firebase lalu mengeksekusi GPS & Motor
+  Future<void> _fetchHubsAndInit() async {
+    final fetchedHubs = await HubSource.fetchHubs();
+    if (mounted) {
+      setState(() {
+        _dynamicHubs = fetchedHubs;
+      });
+    }
+    // Setelah data Hub berhasi dimuat, baru kita cari jarak GPS ke Hub terdekat
+    await _initGPSLocation();
+    _loadDataMotor();
+  }
+
+  void _loadDataMotor() {
+    browseFeaturedController.fetchFeatured(
+      hubId: _selectedHubId,
+      category: _selectedCategory,
+    );
+    browseNewestController.fetchNewest(
+      hubId: _selectedHubId,
+      category: _selectedCategory,
+    );
+  }
+
+  String _getHubNameDisplay(String hubId) {
+    if (hubId.isEmpty) return "Pusat";
+    // Cari nama hub dari data dinamis
+    final hub = _dynamicHubs.firstWhere(
+      (h) => h.id == hubId,
+      orElse: () =>
+          Hub(id: '', name: 'Pusat', latitude: 0, longitude: 0, address: ''),
+    );
+    return hub.name;
+  }
+
   Future<void> _initGPSLocation() async {
     if (mounted) setState(() => _isLocationLoading = true);
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) throw 'GPS mati';
-
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) throw 'Izin ditolak';
       }
-
       Position position = await Geolocator.getCurrentPosition();
       latLng.LatLng gpsPos = latLng.LatLng(
         position.latitude,
         position.longitude,
       );
-
-      // Ambil nama jalan (Reverse Geo) untuk display awal
       await _updateAddressText(gpsPos);
-
       if (mounted) {
-        setState(() {
-          _activeLocation = gpsPos;
-        });
-        _calculateNearestHub(); // Hitung hub dari lokasi GPS
+        setState(() => _activeLocation = gpsPos);
+        _calculateNearestHub();
       }
     } catch (e) {
       if (mounted) setState(() => _displayAddress = "Lokasi tidak terdeteksi");
@@ -89,36 +123,26 @@ class _BrowseFragmentState extends State<BrowseFragment> {
     }
   }
 
-  // --- 2. LOGIC BUKA MAP PICKER (MANUAL) ---
   void _openMapPicker() async {
-    // Navigasi ke MapPickerPage (pastikan route '/map-picker' ada di main.dart)
-    // Kirim lokasi terakhir agar peta tidak reset ke default
     final result = await Navigator.pushNamed(
       context,
       '/map-picker',
       arguments: _activeLocation,
     );
-
-    // Terima balikan data Map {'lat':..., 'lng':..., 'address':...}
     if (result != null && result is Map) {
-      double rLat = result['lat'] ?? 0.0;
-      double rLng = result['lng'] ?? 0.0;
-      String rAddr = result['address'] ?? "";
-
       setState(() {
-        _activeLocation = latLng.LatLng(rLat, rLng);
-        _displayAddress = rAddr;
-        _isLocationLoading = true; // Loading saat hitung ulang hub
+        _activeLocation = latLng.LatLng(
+          result['lat'] ?? 0.0,
+          result['lng'] ?? 0.0,
+        );
+        _displayAddress = result['address'] ?? "";
+        _isLocationLoading = true;
       });
-
-      // Hitung ulang hub berdasarkan lokasi pilihan user
       await _calculateNearestHub();
-
       if (mounted) setState(() => _isLocationLoading = false);
     }
   }
 
-  // Helper: Reverse Geocoding Text
   Future<void> _updateAddressText(latLng.LatLng pos) async {
     try {
       List<Placemark> placemarks = await placemarkFromCoordinates(
@@ -126,60 +150,36 @@ class _BrowseFragmentState extends State<BrowseFragment> {
         pos.longitude,
       );
       Placemark place = placemarks[0];
-      String street = place.thoroughfare ?? '';
-      String district = place.subLocality ?? place.locality ?? '';
-
-      if (street.isEmpty) street = place.name ?? '';
-
-      // Format: "Jalan Anggrek Rosliana, Jakarta Barat"
-      String formatted = "$street, $district";
+      String formatted =
+          "${place.thoroughfare ?? place.name ?? ''}, ${place.subLocality ?? place.locality ?? ''}";
       if (formatted.startsWith(", ")) formatted = formatted.substring(2);
-
       if (mounted) setState(() => _displayAddress = formatted);
     } catch (e) {
       if (mounted) setState(() => _displayAddress = "Lokasi terpilih");
     }
   }
 
-  // Helper: Hitung Hub Terdekat
+  // [PERBAIKAN LOGIKA]: Menghitung dari _dynamicHubs
   Future<void> _calculateNearestHub() async {
-    if (_activeLocation == null) return;
+    if (_activeLocation == null || _dynamicHubs.isEmpty) return;
+    double minDistance = double.infinity;
+    Map<String, dynamic>? closest;
+    final distanceCalc = const latLng.Distance();
 
-    try {
-      final hubsSnapshot = await FirebaseFirestore.instance
-          .collection('hubs')
-          .get();
-      if (hubsSnapshot.docs.isNotEmpty) {
-        double minDistance = double.infinity;
-        Map<String, dynamic>? closest;
-        final distanceCalc = const latLng.Distance();
-
-        for (var doc in hubsSnapshot.docs) {
-          Map<String, dynamic> data = doc.data();
-          double hubLat = (data['lat'] ?? 0).toDouble();
-          double hubLng = (data['lng'] ?? 0).toDouble();
-
-          double dist = distanceCalc.as(
-            latLng.LengthUnit.Kilometer,
-            _activeLocation!,
-            latLng.LatLng(hubLat, hubLng),
-          );
-
-          if (dist < minDistance) {
-            minDistance = dist;
-            closest = data;
-            closest['id'] = doc.id;
-            closest['distance_km'] = dist;
-          }
-        }
-        if (mounted) setState(() => _nearestHub = closest);
+    for (var hub in _dynamicHubs) {
+      double dist = distanceCalc.as(
+        latLng.LengthUnit.Kilometer,
+        _activeLocation!,
+        latLng.LatLng(hub.latitude, hub.longitude),
+      );
+      if (dist < minDistance) {
+        minDistance = dist;
+        closest = {'id': hub.id, 'name': hub.name, 'distance_km': dist};
       }
-    } catch (e) {
-      print("Error calculating hub: $e");
     }
+    if (mounted) setState(() => _nearestHub = closest);
   }
 
-  // --- LOGIC STANDARD ---
   void _checkFlashMessage() {
     if (bookingStatusController.flashMessageActive.value) {
       setState(() => _isStatusVisible = true);
@@ -214,9 +214,7 @@ class _BrowseFragmentState extends State<BrowseFragment> {
   Widget build(BuildContext context) {
     return RefreshIndicator(
       onRefresh: () async {
-        _initGPSLocation(); // Reset ke GPS saat pull refresh
-        browseFeaturedController.fetchFeatured();
-        browseNewestController.fetchNewest();
+        await _fetchHubsAndInit(); // Mengambil ulang Hub jika ditarik kebawah
         _fetchActiveOrder();
       },
       child: Scaffold(
@@ -225,8 +223,6 @@ class _BrowseFragmentState extends State<BrowseFragment> {
           physics: const BouncingScrollPhysics(),
           slivers: [
             SliverGap(20 + MediaQuery.of(context).padding.top),
-
-            // [HEADER BARU: LOCATION PICKER]
             SliverToBoxAdapter(child: buildLocationHeader()),
 
             if (_isStatusVisible && activeOrder != null)
@@ -235,8 +231,23 @@ class _BrowseFragmentState extends State<BrowseFragment> {
               const SliverGap(0),
 
             const SliverGap(24),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: const Text(
+                  'Cari di Garasi (Hub)',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xff070623),
+                  ),
+                ),
+              ),
+            ),
+            const SliverGap(12),
+            SliverToBoxAdapter(child: buildCityFilter()),
+            const SliverGap(24),
 
-            // Kategori
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -254,7 +265,6 @@ class _BrowseFragmentState extends State<BrowseFragment> {
             SliverToBoxAdapter(child: buildCategories()),
             const SliverGap(24),
 
-            // Section Terdekat (Dinamis)
             if (_nearestHub != null) ...[
               SliverToBoxAdapter(
                 child: Padding(
@@ -290,7 +300,6 @@ class _BrowseFragmentState extends State<BrowseFragment> {
               const SliverGap(24),
             ],
 
-            // Section Unggulan
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -308,7 +317,6 @@ class _BrowseFragmentState extends State<BrowseFragment> {
             SliverToBoxAdapter(child: buildFeatured()),
             const SliverGap(24),
 
-            // Section Semua Motor
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -336,6 +344,19 @@ class _BrowseFragmentState extends State<BrowseFragment> {
                 );
 
               List<Bike> list = browseNewestController.list;
+              if (list.isEmpty)
+                return const SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Center(
+                      child: Text(
+                        "Belum ada armada untuk filter ini.",
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    ),
+                  ),
+                );
+
               return SliverList(
                 delegate: SliverChildBuilderDelegate((context, index) {
                   Bike bike = list[index];
@@ -355,7 +376,126 @@ class _BrowseFragmentState extends State<BrowseFragment> {
     );
   }
 
-  // --- HEADER UI: LOCATION PICKER STYLE ---
+  Widget buildCityFilter() {
+    // Gabungkan filter "Semua Kota" dengan list dinamis dari firebase
+    final List<Map<String, dynamic>> combinedFilters = [
+      {'id': '', 'name': 'Semua Kota'},
+      ..._dynamicHubs.map((e) => {'id': e.id, 'name': e.name}),
+    ];
+
+    return SizedBox(
+      height: 40,
+      child: ListView.builder(
+        physics: const BouncingScrollPhysics(),
+        scrollDirection: Axis.horizontal,
+        itemCount: combinedFilters.length,
+        padding: const EdgeInsets.only(left: 24),
+        itemBuilder: (context, index) {
+          final filter = combinedFilters[index];
+          final isActive = _selectedHubId == filter['id'];
+          return GestureDetector(
+            onTap: () {
+              setState(() => _selectedHubId = filter['id'] as String);
+              _loadDataMotor();
+            },
+            child: Container(
+              margin: const EdgeInsets.only(right: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(50),
+                color: isActive ? const Color(0xff4A1DFF) : Colors.white,
+                border: Border.all(
+                  color: isActive
+                      ? const Color(0xff4A1DFF)
+                      : const Color(0xffF3F4F6),
+                ),
+              ),
+              child: Text(
+                filter['name'] as String,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: isActive ? Colors.white : const Color(0xff070623),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget buildCategories() {
+    final categories = [
+      ['Semua', Icons.grid_view],
+      ['Ekonomis', 'assets/ic_insurance.png'],
+      ['Premium', 'assets/ic_diamond.png'],
+      ['Sport', 'assets/ic_sport.png'],
+      ['Moge', 'assets/ic_moge.png'],
+      ['Lifestyle', 'assets/ic_beach.png'],
+    ];
+
+    return SizedBox(
+      height: 40,
+      child: ListView.builder(
+        physics: const BouncingScrollPhysics(),
+        scrollDirection: Axis.horizontal,
+        itemCount: categories.length,
+        padding: const EdgeInsets.only(left: 24),
+        itemBuilder: (context, index) {
+          final e = categories[index];
+          final String catName = e[0] as String;
+          final bool isActive = _selectedCategory == catName;
+
+          return GestureDetector(
+            onTap: () {
+              setState(() => _selectedCategory = catName);
+              _loadDataMotor();
+            },
+            child: Container(
+              margin: const EdgeInsets.only(right: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(50),
+                color: isActive ? const Color(0xff4A1DFF) : Colors.white,
+                border: Border.all(
+                  color: isActive
+                      ? const Color(0xff4A1DFF)
+                      : const Color(0xffF3F4F6),
+                ),
+              ),
+              child: Row(
+                children: [
+                  e[1] is IconData
+                      ? Icon(
+                          e[1] as IconData,
+                          size: 16,
+                          color: isActive ? Colors.white : Colors.grey,
+                        )
+                      : Image.asset(
+                          e[1] as String,
+                          width: 16,
+                          height: 16,
+                          color: isActive ? Colors.white : null,
+                        ),
+                  const Gap(8),
+                  Text(
+                    catName,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: isActive ? Colors.white : const Color(0xff070623),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   Widget buildLocationHeader() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -363,25 +503,23 @@ class _BrowseFragmentState extends State<BrowseFragment> {
         children: [
           Expanded(
             child: GestureDetector(
-              onTap: _openMapPicker, // KLIK -> BUKA MAP PICKER
+              onTap: _openMapPicker,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    "Lokasi Pengambilan",
+                    "Lokasi Saya",
                     style: TextStyle(fontSize: 10, color: Color(0xff838384)),
                   ),
                   const Gap(4),
                   Row(
                     children: [
-                      // Icon Pin Merah
                       const Icon(
                         Icons.location_on,
                         color: Color(0xffFF2055),
                         size: 16,
                       ),
                       const Gap(6),
-                      // Teks Alamat (Bold)
                       Expanded(
                         child: _isLocationLoading
                             ? const Text(
@@ -403,7 +541,6 @@ class _BrowseFragmentState extends State<BrowseFragment> {
                               ),
                       ),
                       const Gap(4),
-                      // Chevron
                       const Icon(
                         Icons.keyboard_arrow_right,
                         color: Color(0xff070623),
@@ -415,31 +552,71 @@ class _BrowseFragmentState extends State<BrowseFragment> {
               ),
             ),
           ),
-          // Notification Icon
-          Container(
-            height: 40,
-            width: 40,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.circle,
-              border: Border.all(color: const Color(0xffF3F4F6)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.02),
-                  blurRadius: 6,
-                  offset: const Offset(0, 4),
+          StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('Notifications')
+                .where('userId', isEqualTo: account?.uid ?? '')
+                .where('isRead', isEqualTo: false)
+                .snapshots(),
+            builder: (context, snapshot) {
+              bool hasUnread =
+                  snapshot.hasData && snapshot.data!.docs.isNotEmpty;
+
+              return GestureDetector(
+                onTap: () {
+                  Navigator.pushNamed(context, '/notifications');
+                },
+                child: Container(
+                  height: 40,
+                  width: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: const Color(0xffF3F4F6)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.02),
+                        blurRadius: 6,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  padding: const EdgeInsets.all(8),
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Image.asset(
+                        'assets/ic_notification.png',
+                        fit: BoxFit.contain,
+                      ),
+                      if (hasUnread)
+                        Positioned(
+                          right: -2,
+                          top: -2,
+                          child: Container(
+                            width: 10,
+                            height: 10,
+                            decoration: BoxDecoration(
+                              color: const Color(0xffFF2055),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: Colors.white,
+                                width: 1.5,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
-              ],
-            ),
-            padding: const EdgeInsets.all(8),
-            child: Image.asset('assets/ic_notification.png'),
+              );
+            },
           ),
         ],
       ),
     );
   }
 
-  // --- WIDGET LIST MOTOR ---
   Widget buildNearestBikesList() {
     if (_nearestHub == null) return const SizedBox();
 
@@ -450,9 +627,9 @@ class _BrowseFragmentState extends State<BrowseFragment> {
           .limit(10)
           .snapshots(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData)
+        if (snapshot.connectionState == ConnectionState.waiting)
           return const Center(child: CircularProgressIndicator());
-        if (snapshot.data!.docs.isEmpty) {
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
           return Container(
             margin: const EdgeInsets.symmetric(horizontal: 24),
             padding: const EdgeInsets.all(16),
@@ -463,40 +640,47 @@ class _BrowseFragmentState extends State<BrowseFragment> {
               border: Border.all(color: Colors.grey[200]!),
             ),
             child: const Text(
-              "Tidak ada motor tersedia di hub ini.",
+              "Tidak ada motor tersedia di hub terdekat ini.",
               style: TextStyle(color: Colors.grey, fontSize: 12),
             ),
           );
         }
 
-        final bikes = snapshot.data!.docs;
+        var bikes = snapshot.data!.docs.map((doc) {
+          Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+          data['id'] = doc.id;
+          return Bike.fromJson(data);
+        }).toList();
+
+        if (_selectedCategory != 'Semua') {
+          bikes = bikes
+              .where(
+                (b) =>
+                    b.category.toLowerCase() == _selectedCategory.toLowerCase(),
+              )
+              .toList();
+        }
+
+        if (bikes.isEmpty) return const SizedBox();
+
         return SizedBox(
-          height: 260,
+          height: 270,
           child: ListView.builder(
             itemCount: bikes.length,
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
             itemBuilder: (context, index) {
-              Map<String, dynamic> data =
-                  bikes[index].data() as Map<String, dynamic>;
-              data['id'] = bikes[index].id;
-              Bike bike = Bike.fromJson(data);
-
               final margin = EdgeInsets.only(
                 left: index == 0 ? 24 : 12,
                 right: index == bikes.length - 1 ? 24 : 12,
               );
-
-              return buildVerticalCard(bike, margin, false);
+              return buildVerticalCard(bikes[index], margin, false);
             },
           ),
         );
       },
     );
   }
-
-  // --- CARD & CATEGORIES WIDGETS ---
-  // (Sama seperti sebelumnya untuk menjaga desain konsisten)
 
   Widget buildFeatured() {
     return Obx(() {
@@ -506,8 +690,19 @@ class _BrowseFragmentState extends State<BrowseFragment> {
       if (status != 'success') return Center(child: FailedUi(message: status));
 
       List<Bike> list = browseFeaturedController.list;
+      if (list.isEmpty)
+        return const Center(
+          child: Padding(
+            padding: EdgeInsets.all(24),
+            child: Text(
+              "Belum ada unggulan di area ini.",
+              style: TextStyle(color: Colors.grey),
+            ),
+          ),
+        );
+
       return SizedBox(
-        height: 260,
+        height: 270,
         child: ListView.builder(
           itemCount: list.length,
           scrollDirection: Axis.horizontal,
@@ -525,6 +720,7 @@ class _BrowseFragmentState extends State<BrowseFragment> {
     });
   }
 
+  // --- KARTU VERTIKAL (UNGGULAN / TERDEKAT) ---
   Widget buildVerticalCard(
     Bike bike,
     EdgeInsetsGeometry margin,
@@ -595,9 +791,34 @@ class _BrowseFragmentState extends State<BrowseFragment> {
                 color: Color(0xff070623),
               ),
             ),
+            const Gap(4),
             Text(
               bike.category,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(fontSize: 10, color: Color(0xff838384)),
+            ),
+            const Gap(4),
+            Row(
+              children: [
+                const Icon(
+                  Icons.location_on,
+                  size: 10,
+                  color: Color(0xffFF2055),
+                ),
+                const Gap(2),
+                Expanded(
+                  child: Text(
+                    _getHubNameDisplay(bike.hubId),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: Color(0xff838384),
+                    ),
+                  ),
+                ),
+              ],
             ),
             const Gap(6),
             RatingBar.builder(
@@ -618,7 +839,7 @@ class _BrowseFragmentState extends State<BrowseFragment> {
                 text: NumberFormat.currency(
                   decimalDigits: 0,
                   locale: 'id_ID',
-                  symbol: 'Rp',
+                  symbol: 'Rp ',
                 ).format(bike.price),
                 style: const TextStyle(
                   fontSize: 14,
@@ -627,9 +848,9 @@ class _BrowseFragmentState extends State<BrowseFragment> {
                 ),
                 children: const [
                   TextSpan(
-                    text: '/day',
+                    text: '/hari',
                     style: TextStyle(
-                      fontSize: 10,
+                      fontSize: 12,
                       fontWeight: FontWeight.w400,
                       color: Color(0xff838384),
                     ),
@@ -643,11 +864,11 @@ class _BrowseFragmentState extends State<BrowseFragment> {
     );
   }
 
+  // --- KARTU HORIZONTAL (SEMUA MOTOR) ---
   Widget buildHorizontalCard(Bike bike, EdgeInsetsGeometry margin) {
     return GestureDetector(
       onTap: () => Navigator.pushNamed(context, '/detail', arguments: bike.id),
       child: Container(
-        height: 110,
         margin: margin,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         decoration: BoxDecoration(
@@ -662,6 +883,7 @@ class _BrowseFragmentState extends State<BrowseFragment> {
           ],
         ),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             ExtendedImage.network(
               bike.image,
@@ -694,78 +916,71 @@ class _BrowseFragmentState extends State<BrowseFragment> {
                       color: Color(0xff838384),
                     ),
                   ),
+                  const Gap(4),
+                  RatingBar.builder(
+                    initialRating: bike.rating.toDouble(),
+                    minRating: 1,
+                    direction: Axis.horizontal,
+                    allowHalfRating: true,
+                    itemCount: 5,
+                    itemSize: 12,
+                    ignoreGestures: true,
+                    itemBuilder: (context, _) =>
+                        const Icon(Icons.star, color: Color(0xffFFBC1C)),
+                    onRatingUpdate: (rating) {},
+                  ),
+                  const Gap(4),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.location_on,
+                        size: 12,
+                        color: Color(0xffFF2055),
+                      ),
+                      const Gap(2),
+                      Expanded(
+                        child: Text(
+                          _getHubNameDisplay(bike.hubId),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xff838384),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                   const Gap(8),
-                  Text(
-                    NumberFormat.currency(
-                      decimalDigits: 0,
-                      locale: 'id_ID',
-                      symbol: 'Rp ',
-                    ).format(bike.price),
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xff4A1DFF),
+                  RichText(
+                    text: TextSpan(
+                      text: NumberFormat.currency(
+                        decimalDigits: 0,
+                        locale: 'id_ID',
+                        symbol: 'Rp ',
+                      ).format(bike.price),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xff4A1DFF),
+                      ),
+                      children: const [
+                        TextSpan(
+                          text: '/hari',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w400,
+                            color: Color(0xff838384),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
             ),
-            const Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  "/day",
-                  style: TextStyle(fontSize: 10, color: Color(0xff838384)),
-                ),
-              ],
-            ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget buildCategories() {
-    final categories = [
-      ['Ekonomis', 'assets/ic_insurance.png'],
-      ['Premium', 'assets/ic_diamond.png'],
-      ['Sport', 'assets/ic_sport.png'],
-      ['Moge', 'assets/ic_moge.png'],
-      ['Lifestyle', 'assets/ic_beach.png'],
-    ];
-    return SizedBox(
-      height: 40,
-      child: ListView.builder(
-        physics: const BouncingScrollPhysics(),
-        scrollDirection: Axis.horizontal,
-        itemCount: categories.length,
-        padding: const EdgeInsets.only(left: 24),
-        itemBuilder: (context, index) {
-          final e = categories[index];
-          return Container(
-            margin: const EdgeInsets.only(right: 12),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(50),
-              color: Colors.white,
-              border: Border.all(color: const Color(0xffF3F4F6)),
-            ),
-            child: Row(
-              children: [
-                Image.asset(e[1], width: 16, height: 16),
-                const Gap(8),
-                Text(
-                  e[0],
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xff070623),
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
       ),
     );
   }

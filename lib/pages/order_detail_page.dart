@@ -29,11 +29,12 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
   }
 
   void _refreshData() async {
-    final doc = await FirebaseFirestore.instance.collection('Orders').doc(order.id).get();
+    final doc = await FirebaseFirestore.instance
+        .collection('Orders')
+        .doc(order.id)
+        .get();
     if (doc.exists) {
-      setState(() {
-        order = OrderModel.fromJson(doc.data()!, doc.id);
-      });
+      setState(() => order = OrderModel.fromJson(doc.data()!, doc.id));
     }
   }
 
@@ -83,14 +84,11 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
         message: messageText,
         receiverId: 'cs',
         senderId: account.uid,
-        bikeDetail:
-            snapshotData,
+        bikeDetail: snapshotData,
       );
 
       await ChatSource.send(chat, account.uid);
-
       Info.hideLoading();
-
       Navigator.pushNamed(
         context,
         '/chatting',
@@ -130,22 +128,33 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                       shape: BoxShape.circle,
                       color: Colors.white,
                       boxShadow: [
-                        BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))
+                        BoxShadow(
+                          color: Colors.black12,
+                          blurRadius: 4,
+                          offset: Offset(0, 2),
+                        ),
                       ],
                     ),
-                    child: const Icon(Icons.arrow_back, color: Color(0xff070623), size: 22),
+                    child: const Icon(
+                      Icons.arrow_back,
+                      color: Color(0xff070623),
+                      size: 22,
+                    ),
                   ),
                 ),
               ),
               const Text(
                 'Pesanan',
-                style: TextStyle(color: Color(0xff070623), fontWeight: FontWeight.w700, fontSize: 18),
+                style: TextStyle(
+                  color: Color(0xff070623),
+                  fontWeight: FontWeight.w700,
+                  fontSize: 18,
+                ),
               ),
             ],
           ),
         ),
       ),
-
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
         children: [
@@ -178,7 +187,10 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
     }
 
     return Container(
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -187,11 +199,17 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
             padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
             decoration: BoxDecoration(
               color: headerColor,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(16),
+              ),
             ),
             child: Text(
               headerText,
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14),
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+                fontSize: 14,
+              ),
             ),
           ),
           Padding(
@@ -205,7 +223,10 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                       borderRadius: BorderRadius.circular(8),
                       child: ExtendedImage.network(
                         order.bikeSnapshot['image'] ?? '',
-                        width: 60, height: 50, fit: BoxFit.contain, cache: true,
+                        width: 60,
+                        height: 50,
+                        fit: BoxFit.contain,
+                        cache: true,
                       ),
                     ),
                     const Gap(12),
@@ -213,37 +234,73 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(order.bikeSnapshot['name'], style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: Color(0xff070623))),
-                          Text(order.agency, style: const TextStyle(fontSize: 12, color: Color(0xff838384))),
+                          Text(
+                            order.bikeSnapshot['name'],
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 16,
+                              color: Color(0xff070623),
+                            ),
+                          ),
+                          Text(
+                            order.bikeSnapshot['category'] ?? '',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Color(0xff838384),
+                            ),
+                          ),
                         ],
                       ),
-                    )
+                    ),
                   ],
                 ),
                 const Gap(16),
                 Row(
-                  children: [
-                    const Icon(Icons.error, color: Color(0xffFF2055), size: 18),
-                    const Gap(8),
-                    const Text("Tidak bisa reschedule", style: TextStyle(fontSize: 12, color: Color(0xff838384))),
+                  children: const [
+                    Icon(Icons.error, color: Color(0xffFF2055), size: 18),
+                    Gap(8),
+                    Text(
+                      "Tidak bisa reschedule",
+                      style: TextStyle(fontSize: 12, color: Color(0xff838384)),
+                    ),
                   ],
                 ),
                 const Gap(20),
-                const Text("Data Penyewa", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xff070623))),
+                const Text(
+                  "Data Penyewa",
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                    color: Color(0xff070623),
+                  ),
+                ),
                 const Gap(8),
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     border: Border.all(color: const Color(0xffEFEEF7)),
-                    borderRadius: BorderRadius.circular(12)
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(order.userName, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xff070623))),
+                      Text(
+                        order.userName,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xff070623),
+                        ),
+                      ),
                       const Gap(4),
-                      Text("${order.userEmail} • ${order.userPhone}", style: const TextStyle(fontSize: 12, color: Color(0xff838384))),
+                      Text(
+                        "${order.userEmail} • ${order.userPhone}",
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xff838384),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -255,8 +312,18 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                 RichText(
                   text: const TextSpan(
                     text: "Durasi Sewa",
-                    style: TextStyle(color: Color(0xff070623), fontWeight: FontWeight.w700, fontSize: 14, fontFamily: 'Poppins'),
-                    children: [TextSpan(text: " *", style: TextStyle(color: Color(0xffFF2055)))]
+                    style: TextStyle(
+                      color: Color(0xff070623),
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                      fontFamily: 'Poppins',
+                    ),
+                    children: [
+                      TextSpan(
+                        text: " *",
+                        style: TextStyle(color: Color(0xffFF2055)),
+                      ),
+                    ],
                   ),
                 ),
                 const Gap(8),
@@ -266,22 +333,48 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text("Pengambilan :", style: TextStyle(fontSize: 10, color: Color(0xff838384))),
-                        Text(order.startDate, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xff070623))),
+                        const Text(
+                          "Pengambilan :",
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Color(0xff838384),
+                          ),
+                        ),
+                        Text(
+                          order.startDate,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xff070623),
+                          ),
+                        ),
                       ],
                     ),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        const Text("Pengembalian :", style: TextStyle(fontSize: 10, color: Color(0xff838384))),
-                        Text(order.endDate, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xff070623))),
+                        const Text(
+                          "Pengembalian :",
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Color(0xff838384),
+                          ),
+                        ),
+                        Text(
+                          order.endDate,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xff070623),
+                          ),
+                        ),
                       ],
                     ),
                   ],
                 ),
               ],
             ),
-          )
+          ),
         ],
       ),
     );
@@ -294,33 +387,81 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
 
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text("Status Pesanan", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xff070623))),
+          const Text(
+            "Status Pesanan",
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 14,
+              color: Color(0xff070623),
+            ),
+          ),
           const Gap(20),
           Row(
             children: [
-              _buildTimelineStep(icon: Icons.local_shipping_outlined, label: "Sedang\nDikirim", isActive: level >= 1, isCurrent: level == 1, isCheck: false),
-              Expanded(child: Container(height: 2, color: level >= 2 ? const Color(0xffE5E7EB) : const Color(0xffF3F4F6))),
-              _buildTimelineStep(icon: Icons.calendar_today_outlined, label: "Sedang\nBerlangsung", isActive: level >= 2, isCurrent: level == 2, isCheck: false),
-              Expanded(child: Container(height: 2, color: level >= 3 ? const Color(0xffE5E7EB) : const Color(0xffF3F4F6))),
-              _buildTimelineStep(icon: Icons.check, label: "Pesanan\nSelesai", isActive: level >= 3, isCurrent: level == 3, isCheck: true),
+              _buildTimelineStep(
+                icon: Icons.local_shipping_outlined,
+                label: "Sedang\nDikirim",
+                isActive: level >= 1,
+                isCurrent: level == 1,
+                isCheck: false,
+              ),
+              Expanded(
+                child: Container(
+                  height: 2,
+                  color: level >= 2
+                      ? const Color(0xffE5E7EB)
+                      : const Color(0xffF3F4F6),
+                ),
+              ),
+              _buildTimelineStep(
+                icon: Icons.calendar_today_outlined,
+                label: "Sedang\nBerlangsung",
+                isActive: level >= 2,
+                isCurrent: level == 2,
+                isCheck: false,
+              ),
+              Expanded(
+                child: Container(
+                  height: 2,
+                  color: level >= 3
+                      ? const Color(0xffE5E7EB)
+                      : const Color(0xffF3F4F6),
+                ),
+              ),
+              _buildTimelineStep(
+                icon: Icons.check,
+                label: "Pesanan\nSelesai",
+                isActive: level >= 3,
+                isCurrent: level == 3,
+                isCheck: true,
+              ),
             ],
-          )
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildTimelineStep({required IconData icon, required String label, required bool isActive, required bool isCurrent, required bool isCheck}) {
+  Widget _buildTimelineStep({
+    required IconData icon,
+    required String label,
+    required bool isActive,
+    required bool isCurrent,
+    required bool isCheck,
+  }) {
     Color circleColor = const Color(0xffF3F4F6);
     Color iconColor = const Color(0xff9CA3AF);
     if (isActive) {
       if (isCurrent || (isCheck && isActive)) {
         circleColor = const Color(0xffFFBC1C);
-        iconColor = const Color(0xff070623); 
+        iconColor = const Color(0xff070623);
       } else {
         circleColor = const Color(0xffE5E7EB);
         iconColor = const Color(0xff6B7280);
@@ -329,12 +470,21 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
     return Column(
       children: [
         Container(
-          width: 40, height: 40,
+          width: 40,
+          height: 40,
           decoration: BoxDecoration(color: circleColor, shape: BoxShape.circle),
           child: Icon(icon, color: iconColor, size: 20),
         ),
         const Gap(8),
-        Text(label, textAlign: TextAlign.center, style: TextStyle(fontSize: 10, color: isActive ? const Color(0xff070623) : const Color(0xff9CA3AF), fontWeight: isActive ? FontWeight.w600 : FontWeight.w400)),
+        Text(
+          label,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 10,
+            color: isActive ? const Color(0xff070623) : const Color(0xff9CA3AF),
+            fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+          ),
+        ),
       ],
     );
   }
@@ -342,23 +492,55 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
   Widget _buildCard3_Insurance() {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text("Asuransi", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xff070623))),
+          const Text(
+            "Asuransi",
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 14,
+              color: Color(0xff070623),
+            ),
+          ),
           const Gap(12),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Row(
                 children: [
-                  const Icon(Icons.verified_user, color: Color(0xff4A1DFF), size: 20),
+                  const Icon(
+                    Icons.verified_user,
+                    color: Color(0xff4A1DFF),
+                    size: 20,
+                  ),
                   const Gap(8),
-                  Text(order.insuranceName, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xff070623))),
+                  Text(
+                    order.insuranceName,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xff070623),
+                    ),
+                  ),
                 ],
               ),
-              Text(NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 0).format(order.insurancePrice), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xff4A1DFF))),
+              Text(
+                NumberFormat.currency(
+                  locale: 'id',
+                  symbol: 'Rp ',
+                  decimalDigits: 0,
+                ).format(order.insurancePrice),
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xff4A1DFF),
+                ),
+              ),
             ],
           ),
         ],
@@ -369,11 +551,21 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
   Widget _buildCard4_PriceDetails() {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text("Rincian Harga", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xff070623))),
+          const Text(
+            "Rincian Harga",
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 14,
+              color: Color(0xff070623),
+            ),
+          ),
           const Gap(16),
           _buildPriceRow("Harga Sewa (${order.duration} hari)", order.subTotal),
           _buildPriceRow("Asuransi", order.insurancePrice),
@@ -382,8 +574,26 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text("Total Harga", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xff070623))),
-              Text(NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 0).format(order.totalPrice), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: Color(0xff4A1DFF))),
+              const Text(
+                "Total Harga",
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                  color: Color(0xff070623),
+                ),
+              ),
+              Text(
+                NumberFormat.currency(
+                  locale: 'id',
+                  symbol: 'Rp ',
+                  decimalDigits: 0,
+                ).format(order.totalPrice),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                  color: Color(0xff4A1DFF),
+                ),
+              ),
             ],
           ),
         ],
@@ -395,20 +605,43 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
     String method = order.paymentMethod.toLowerCase();
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text("Metode Pembayaran", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xff070623))),
+          const Text(
+            "Metode Pembayaran",
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 14,
+              color: Color(0xff070623),
+            ),
+          ),
           const Gap(16),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _buildPaymentIcon('assets/wallet.png', 'My Wallet', method.contains('wallet')),
-              _buildPaymentIcon('assets/cards.png', 'Transfer', method.contains('transfer')),
-              _buildPaymentIcon('assets/cash.png', 'Cash', method.contains('cash')),
+              _buildPaymentIcon(
+                'assets/wallet.png',
+                'My Wallet',
+                method.contains('wallet'),
+              ),
+              // [PERBAIKAN] Tambahkan pengecekan string 'lainnya' untuk deteksi pembayaran via Midtrans
+              _buildPaymentIcon(
+                'assets/cards.png',
+                'Lainnya',
+                method.contains('transfer') || method.contains('lainnya'),
+              ),
+              _buildPaymentIcon(
+                'assets/cash.png',
+                'Cash',
+                method.contains('cash'),
+              ),
             ],
-          )
+          ),
         ],
       ),
     );
@@ -421,13 +654,28 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
       decoration: BoxDecoration(
         color: isSelected ? const Color(0xffF3E8FF) : const Color(0xffF9FAFB),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isSelected ? const Color(0xff4A1DFF) : Colors.transparent, width: 1.5),
+        border: Border.all(
+          color: isSelected ? const Color(0xff4A1DFF) : Colors.transparent,
+          width: 1.5,
+        ),
       ),
       child: Column(
         children: [
-          Image.asset(asset, width: 24, height: 24, color: isSelected ? const Color(0xff4A1DFF) : Colors.grey),
+          Image.asset(
+            asset,
+            width: 24,
+            height: 24,
+            color: isSelected ? const Color(0xff4A1DFF) : Colors.grey,
+          ),
           const Gap(8),
-          Text(label, style: TextStyle(fontSize: 10, color: isSelected ? const Color(0xff4A1DFF) : Colors.grey, fontWeight: FontWeight.w600)),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              color: isSelected ? const Color(0xff4A1DFF) : Colors.grey,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ],
       ),
     );
@@ -444,7 +692,14 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
           child: Container(
             height: 52,
             alignment: Alignment.center,
-            child: Text(text, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: Colors.white)),
+            child: Text(
+              text,
+              style: const TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 16,
+                color: Colors.white,
+              ),
+            ),
           ),
         ),
       );
@@ -460,19 +715,48 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
           child: Container(
             height: 52,
             alignment: Alignment.center,
-            decoration: BoxDecoration(borderRadius: BorderRadius.circular(50), border: Border.all(color: const Color(0xffE5E7EB), width: 1)),
-            child: Text(text, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: Color(0xff070623))),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(50),
+              border: Border.all(color: const Color(0xffE5E7EB), width: 1),
+            ),
+            child: Text(
+              text,
+              style: const TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 16,
+                color: Color(0xff070623),
+              ),
+            ),
           ),
         ),
       );
     }
 
     if (order.status == 'Dikirim') {
-      return Column(children: [yellowButton("Konfirmasi Pesanan", onReceiveOrder), const Gap(12), whiteButton("Hubungi Customer Service", onContactCS)]);
+      return Column(
+        children: [
+          yellowButton("Konfirmasi Pesanan", onReceiveOrder),
+          const Gap(12),
+          whiteButton("Hubungi Customer Service", onContactCS),
+        ],
+      );
     } else if (order.status == 'Berlangsung') {
       return yellowButton("Hubungi Customer Service", onContactCS);
     } else {
-      return Column(children: [yellowButton("Hubungi Customer Service", onContactCS), const Gap(12), whiteButton("Pemesanan Motor Lainnya", () { Navigator.pushNamedAndRemoveUntil(context, '/discover', (route) => false, arguments: {'initialIndex': 0}); })]);
+      return Column(
+        children: [
+          yellowButton("Hubungi Customer Service", onContactCS),
+          const Gap(12),
+          whiteButton("Pemesanan Motor Lainnya", () {
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              '/discover',
+              (route) => false,
+              arguments: {'initialIndex': 0},
+            );
+          }),
+        ],
+      );
     }
   }
 
@@ -481,10 +765,30 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         RichText(
-          text: TextSpan(text: label.replaceAll('*', ''), style: const TextStyle(fontSize: 12, color: Color(0xff838384), fontFamily: 'Poppins'), children: const [TextSpan(text: " *", style: TextStyle(color: Color(0xffFF2055)))]),
+          text: TextSpan(
+            text: label.replaceAll('*', ''),
+            style: const TextStyle(
+              fontSize: 12,
+              color: Color(0xff838384),
+              fontFamily: 'Poppins',
+            ),
+            children: const [
+              TextSpan(
+                text: " *",
+                style: TextStyle(color: Color(0xffFF2055)),
+              ),
+            ],
+          ),
         ),
         const Gap(4),
-        Text(value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xff070623))),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: Color(0xff070623),
+          ),
+        ),
       ],
     );
   }
@@ -495,8 +799,22 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(fontSize: 12, color: Color(0xff838384))),
-          Text(NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 0).format(value), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xff070623))),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 12, color: Color(0xff838384)),
+          ),
+          Text(
+            NumberFormat.currency(
+              locale: 'id',
+              symbol: 'Rp ',
+              decimalDigits: 0,
+            ).format(value),
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Color(0xff070623),
+            ),
+          ),
         ],
       ),
     );

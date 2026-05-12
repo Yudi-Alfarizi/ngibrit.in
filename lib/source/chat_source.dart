@@ -21,8 +21,7 @@ class ChatSource {
       'lastMessage': 'Welcome to Ngibrit.in',
       'newFromUser': false,
       'newFromCS': true,
-      'lastTime':
-          FieldValue.serverTimestamp(),
+      'lastTime': FieldValue.serverTimestamp(),
     });
 
     await FirebaseFirestore.instance
@@ -44,8 +43,7 @@ class ChatSource {
       'lastMessage': chat.message,
       'newFromUser': true,
       'newFromCS': false,
-      'lastTime':
-          FieldValue.serverTimestamp(),
+      'lastTime': FieldValue.serverTimestamp(),
     });
 
     await FirebaseFirestore.instance

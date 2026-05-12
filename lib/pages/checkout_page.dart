@@ -1,7 +1,6 @@
 import 'package:d_session/d_session.dart';
 import 'package:extended_image/extended_image.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:gap/gap.dart';
 import 'package:intl/intl.dart';
 import 'package:fluttertoast/fluttertoast.dart';
@@ -20,7 +19,6 @@ class CheckoutPage extends StatefulWidget {
     required this.bike,
     required this.startDate,
     required this.endDate,
-    // [BARU] Parameter tambahan untuk biaya antar
     this.deliveryFee = 0,
     this.isDelivery = false,
   });
@@ -42,7 +40,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
   num priceInsurance = 0;
   num priceTax = 0;
 
-  // [BARU] Biaya Jaminan (Refundable)
   final num securityDeposit = 150000;
   int durationDays = 0;
 
@@ -58,12 +55,14 @@ class _CheckoutPageState extends State<CheckoutPage> {
     BookingStatusController(),
   );
 
+  // [PERBAIKAN ONGKIR] Variabel yang akan menyimpan data fix dari Routing
+  bool _isDelivery = false;
+  num _deliveryFee = 0;
+
   @override
   void initState() {
     super.initState();
     fToast = FToast();
-    _calculatePriceDetails();
-
     WidgetsBinding.instance.addPostFrameCallback((_) {
       try {
         fToast.init(context);
@@ -73,31 +72,43 @@ class _CheckoutPageState extends State<CheckoutPage> {
     });
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // [PERBAIKAN ONGKIR] Memaksa membaca args dari route jika constructor bermasalah
+    final args =
+        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    if (args != null) {
+      _isDelivery = args['isDelivery'] ?? widget.isDelivery;
+      _deliveryFee = args['deliveryFee'] ?? widget.deliveryFee;
+    } else {
+      _isDelivery = widget.isDelivery;
+      _deliveryFee = widget.deliveryFee;
+    }
+    _calculatePriceDetails();
+  }
+
   void _calculatePriceDetails() {
     try {
       final s = DateFormat('dd MMM yyyy').parseStrict(widget.startDate);
       final e = DateFormat('dd MMM yyyy').parseStrict(widget.endDate);
       final diff = e.difference(s).inDays;
-      durationDays = diff >= 1 ? diff : 1; // Minimal 1 hari
+      durationDays = diff >= 1 ? diff : 1;
     } catch (_) {
       durationDays = 1;
     }
 
     final pricePerDay = widget.bike.price.toDouble();
     priceSubTotal = pricePerDay * durationDays;
+    priceInsurance = priceSubTotal * 0.2;
+    priceTax = priceSubTotal * 0.2;
 
-    // Asuransi 20% dari Subtotal (Bisa diubah jadi flat jika mau)
-    priceInsurance = priceSubTotal * 0.20;
-
-    // Pajak 11%
-    priceTax = priceSubTotal * 0.11;
-
-    // [BARU] Rumus Total Akhir
+    // [PERBAIKAN] Menggunakan _deliveryFee yang sudah divalidasi
     grandTotal =
         priceSubTotal +
         priceInsurance +
         priceTax +
-        widget.deliveryFee +
+        _deliveryFee +
         securityDeposit;
   }
 
@@ -139,9 +150,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Recalculate saat build untuk memastikan data konsisten
-    _calculatePriceDetails();
-
     final headerHeight =
         kToolbarHeight + MediaQuery.of(context).padding.top + 32;
     final payments = [
@@ -186,7 +194,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
   Widget _buildActionArea() {
     if (selectedPayment == null) return const SizedBox.shrink();
-
     final argsFromBooking =
         ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
 
@@ -195,7 +202,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
         text: 'Bayar Sekarang',
         onTap: () async {
           Info.showLoading(context, message: "Memproses Pembayaran...");
-
           try {
             final result = await orderController.createOrder(
               bike: widget.bike,
@@ -208,24 +214,20 @@ class _CheckoutPageState extends State<CheckoutPage> {
               renterName: argsFromBooking['name'] ?? 'Guest',
               pickupLocation: argsFromBooking['pickup'] ?? '-',
               returnLocation: argsFromBooking['return'] ?? '-',
-              agency: argsFromBooking['agency'] ?? '-',
               insuranceName: argsFromBooking['insurance'] ?? '-',
               insurancePrice: priceInsurance,
               tax: priceTax,
               subTotal: priceSubTotal,
-              // [BARU] Kirim data tambahan
-              deliveryFee: widget.deliveryFee,
+              deliveryFee: _deliveryFee,
               securityDeposit: securityDeposit,
-              isDelivery: widget.isDelivery,
+              isDelivery: _isDelivery,
             );
-
             Info.hideLoading();
 
             if (result['success'] == true) {
               if (result['isMidtrans'] == true) {
                 final redirectUrl = result['redirectUrl'];
                 final orderId = result['orderId'];
-
                 if (redirectUrl != null) {
                   await Navigator.push(
                     context,
@@ -263,13 +265,10 @@ class _CheckoutPageState extends State<CheckoutPage> {
       return ButtonPrimary(
         text: 'Pesan Sekarang',
         onTap: () {
-          if (selectedPayment == 'My Wallet') {
-            if (balance < grandTotal) {
-              showErrorToast('Gagal melakukan pembayaran. Saldo tidak cukup.');
-              return;
-            }
+          if (selectedPayment == 'My Wallet' && balance < grandTotal) {
+            showErrorToast('Gagal melakukan pembayaran. Saldo tidak cukup.');
+            return;
           }
-
           final Map<String, dynamic> fullBookingData = {
             'bike': widget.bike,
             'startDate': widget.startDate,
@@ -281,19 +280,15 @@ class _CheckoutPageState extends State<CheckoutPage> {
             'phone': argsFromBooking['phone'],
             'pickup': argsFromBooking['pickup'],
             'return': argsFromBooking['return'],
-            'agency': argsFromBooking['agency'],
             'insurance': argsFromBooking['insurance'],
-            // [BARU] Data untuk PIN Page
-            'deliveryFee': widget.deliveryFee,
+            'deliveryFee': _deliveryFee,
             'securityDeposit': securityDeposit,
-            'isDelivery': widget.isDelivery,
+            'isDelivery': _isDelivery,
           };
-
           Navigator.pushNamed(context, '/pin', arguments: fullBookingData);
         },
       );
     }
-
     return const SizedBox.shrink();
   }
 
@@ -319,17 +314,15 @@ class _CheckoutPageState extends State<CheckoutPage> {
             scrollDirection: Axis.horizontal,
             itemCount: payments.length,
             itemBuilder: (context, index) {
-              final label = payments[index][0];
-              final iconPath = payments[index][1];
-              final isSelected = label == selectedPayment;
+              final label = payments[index][0],
+                  iconPath = payments[index][1],
+                  isSelected = label == selectedPayment;
               return GestureDetector(
-                onTap: () {
-                  setState(() {
-                    selectedPayment = label;
-                    selectedBank = null;
-                    generatedVA = null;
-                  });
-                },
+                onTap: () => setState(() {
+                  selectedPayment = label;
+                  selectedBank = null;
+                  generatedVA = null;
+                }),
                 child: Container(
                   width: 130,
                   margin: EdgeInsets.only(
@@ -364,18 +357,16 @@ class _CheckoutPageState extends State<CheckoutPage> {
           ),
         ),
         const Gap(24),
-        // Kartu Saldo (Tampilan Saja)
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: FutureBuilder(
             future: DSession.getUser(),
             builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
+              if (snapshot.connectionState == ConnectionState.waiting)
                 return const SizedBox(
                   height: 180,
                   child: Center(child: CircularProgressIndicator()),
                 );
-              }
               if (!snapshot.hasData) return const SizedBox();
               final account = Account.fromJson(
                 Map<String, dynamic>.from(snapshot.data!),
@@ -474,14 +465,13 @@ class _CheckoutPageState extends State<CheckoutPage> {
           const Gap(14),
           buildItemDetails2('Sub Total Harga', _fmt(priceSubTotal)),
           const Gap(14),
-          buildItemDetails2('Asuransi 20%', _fmt(priceInsurance)),
+          buildItemDetails2('Asuransi 2%', _fmt(priceInsurance)),
           const Gap(14),
-          buildItemDetails2('Tax 11%', _fmt(priceTax)),
+          buildItemDetails2('Tax 2%', _fmt(priceTax)),
 
-          // [BARU] Tampilkan Ongkir & Deposit jika ada
-          if (widget.isDelivery) ...[
+          if (_isDelivery) ...[
             const Gap(14),
-            buildItemDetails2('Biaya Antar', _fmt(widget.deliveryFee)),
+            buildItemDetails2('Biaya Antar', _fmt(_deliveryFee)),
           ],
 
           const Gap(14),
@@ -498,23 +488,18 @@ class _CheckoutPageState extends State<CheckoutPage> {
               ),
             ),
           ),
-
           const Divider(height: 30, thickness: 1),
-
           buildItemDetails3('Total Pembayaran', _fmt(grandTotal)),
         ],
       ),
     );
   }
 
-  // Helper Format Currency
-  String _fmt(num price) {
-    return NumberFormat.currency(
-      decimalDigits: 0,
-      locale: 'id_ID',
-      symbol: 'Rp ',
-    ).format(price);
-  }
+  String _fmt(num price) => NumberFormat.currency(
+    decimalDigits: 0,
+    locale: 'id_ID',
+    symbol: 'Rp ',
+  ).format(price);
 
   Widget buildItemDetails1(String title, String data, String unit) => Row(
     children: [
@@ -560,6 +545,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
       ),
     ],
   );
+
   Widget buildSnippetBike() => Container(
     margin: const EdgeInsets.symmetric(horizontal: 24),
     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -584,6 +570,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
             children: [
               Text(
                 widget.bike.name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
@@ -613,6 +601,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
       ],
     ),
   );
+
   Widget buildHeader(BuildContext context, double headerHeight) => Container(
     height: headerHeight,
     padding: EdgeInsets.only(

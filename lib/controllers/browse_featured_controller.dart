@@ -11,15 +11,16 @@ class BrowseFeaturedController extends GetxController {
   String get status => _status.value;
   set status(String n) => _status.value = n;
 
-  fetchFeatured() async {
+  fetchFeatured({String? hubId, String? category}) async {
     status = 'loading';
-
-    final bikes = await BikeSource.fetchFeaturedBikes();
+    final bikes = await BikeSource.fetchFeaturedBikes(
+      hubId: hubId,
+      category: category,
+    );
     if (bikes == null) {
       status = 'Ada Masalah';
       return;
     }
-
     status = 'success';
     list = bikes;
   }

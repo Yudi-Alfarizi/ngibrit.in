@@ -5,6 +5,7 @@ import 'package:ngibrit_in/models/account.dart';
 import 'package:ngibrit_in/models/bike.dart';
 import 'package:ngibrit_in/models/order_model.dart';
 import 'package:ngibrit_in/services/payment_service.dart';
+import 'package:ngibrit_in/services/notification_service.dart';
 
 class OrderController extends GetxController {
   Future<Map<String, dynamic>> createOrder({
@@ -18,12 +19,10 @@ class OrderController extends GetxController {
     required String renterName,
     required String pickupLocation,
     required String returnLocation,
-    required String agency,
     required String insuranceName,
     required num insurancePrice,
     required num tax,
     required num subTotal,
-    // [BARU] Parameter Tambahan
     required num deliveryFee,
     required num securityDeposit,
     required bool isDelivery,
@@ -37,7 +36,6 @@ class OrderController extends GetxController {
       final docRef = FirebaseFirestore.instance.collection('Orders').doc();
       final orderId = docRef.id;
 
-      // Status Awal
       String initialStatus =
           (paymentMethod == 'Lainnya' || paymentMethod == 'Transfer')
           ? 'Menunggu Pembayaran'
@@ -49,7 +47,6 @@ class OrderController extends GetxController {
         userName: renterName,
         userEmail: account.email,
         userPhone: userPhone,
-
         bikeSnapshot: {
           'id': bike.id,
           'name': bike.name,
@@ -58,27 +55,19 @@ class OrderController extends GetxController {
           'price': bike.price,
           'rating': bike.rating,
         },
-
         startDate: startDate,
         endDate: endDate,
         duration: duration,
-
         pickupLocation: pickupLocation,
         returnLocation: returnLocation,
-        agency: agency,
-
         insuranceName: insuranceName,
         insurancePrice: insurancePrice,
         tax: tax,
         subTotal: subTotal,
-
         totalPrice: totalPrice,
         paymentMethod: paymentMethod,
-
         status: initialStatus,
         createdAt: Timestamp.now(),
-
-        // [BARU] Simpan Data Tambahan
         deliveryFee: deliveryFee,
         securityDeposit: securityDeposit,
         isDelivery: isDelivery,
@@ -86,7 +75,10 @@ class OrderController extends GetxController {
 
       await docRef.set(newOrder.toJson());
 
-      // --- Logika MIDTRANS ---
+      if (initialStatus == 'Dikirim') {
+        _triggerSuccessNotification(account.uid, bike.name);
+      }
+
       if (paymentMethod == 'Lainnya') {
         final paymentData = await PaymentService.createTransaction(
           orderId: orderId,
@@ -109,25 +101,55 @@ class OrderController extends GetxController {
           return {'success': false, 'message': 'Gagal koneksi ke pembayaran'};
         }
       }
-
       return {'success': true, 'isMidtrans': false};
     } catch (e) {
-      print("Error di OrderController: $e");
       return {'success': false, 'message': e.toString()};
     }
   }
 
-  // Fungsi Update Status Manual (Dipanggil setelah WebView Sukses)
   Future<bool> updateOrderStatus(String orderId, String newStatus) async {
     try {
       await FirebaseFirestore.instance.collection('Orders').doc(orderId).update(
         {'status': newStatus},
       );
 
+      if (newStatus == 'Dikirim') {
+        final doc = await FirebaseFirestore.instance
+            .collection('Orders')
+            .doc(orderId)
+            .get();
+        if (doc.exists) {
+          final data = doc.data()!;
+          _triggerSuccessNotification(
+            data['userId'],
+            data['bikeSnapshot']['name'],
+          );
+        }
+      }
       return true;
     } catch (e) {
-      print("Error updating status: $e");
       return false;
     }
+  }
+
+  void _triggerSuccessNotification(String uid, String bikeName) async {
+    int notifId = DateTime.now().millisecondsSinceEpoch.remainder(100000);
+
+    NotificationService.showNotification(
+      id: notifId,
+      title: "Booking Berhasil! 🎉",
+      body:
+          "Pesanan motor $bikeName Anda sedang diproses dan siap dikirim/diambil.",
+    );
+
+    await FirebaseFirestore.instance.collection('Notifications').add({
+      'userId': uid,
+      'title': "Booking Berhasil! 🎉",
+      'body':
+          "Pesanan motor $bikeName Anda sedang diproses dan siap dikirim/diambil.",
+      'type': 'booking',
+      'isRead': false,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
   }
 }

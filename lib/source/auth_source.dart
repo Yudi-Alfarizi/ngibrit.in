@@ -11,25 +11,22 @@ class AuthSource {
     String password,
   ) async {
     try {
-      final credential =
-          await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-      
-      // Default phone empty saat register
+      final credential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(email: email, password: password);
+
       Account account = Account(
         uid: credential.user!.uid,
         name: name,
         email: email,
-        phoneNumber: '', // [BARU]
+        phoneNumber: '',
+        kycStatus: 'UNVERIFIED', // [BARU] Status awal
       );
-      
+
       await FirebaseFirestore.instance
           .collection('User')
           .doc(account.uid)
           .set(account.toJson());
-          
+
       return 'success';
     } on FirebaseAuthException catch (e) {
       if (e.code == 'weak-password') {
@@ -51,7 +48,7 @@ class AuthSource {
         email: email,
         password: password,
       );
-      
+
       final accountDoc = await FirebaseFirestore.instance
           .collection('User')
           .doc(credential.user!.uid)
@@ -60,25 +57,22 @@ class AuthSource {
       if (accountDoc.exists) {
         Map<String, dynamic> data = accountDoc.data()!;
 
-        // [FIX BUG TIMESTAMP]
-        // Konversi Timestamp ke String sebelum disimpan ke Session
+        // Fix Bug Timestamp
         if (data['verifiedAt'] != null && data['verifiedAt'] is Timestamp) {
-          data['verifiedAt'] = (data['verifiedAt'] as Timestamp).toDate().toIso8601String();
+          data['verifiedAt'] = (data['verifiedAt'] as Timestamp)
+              .toDate()
+              .toIso8601String();
         }
-        
-        // Simpan data yang sudah aman ke session
+
         await DSession.setUser(data);
         return "success";
       } else {
         return "Data user tidak ditemukan di database";
       }
-
     } on FirebaseAuthException catch (e) {
-      if (e.code == 'user-not-found') {
+      if (e.code == 'user-not-found')
         return 'Tidak ada pengguna yang ditemukan.';
-      } else if (e.code == 'wrong-password') {
-        return 'Kata sandi yang diberikan salah.';
-      }
+      if (e.code == 'wrong-password') return 'Kata sandi yang diberikan salah.';
       log(e.toString());
       return "Gagal Login: ${e.message}";
     } catch (e) {

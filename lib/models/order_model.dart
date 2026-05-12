@@ -12,7 +12,6 @@ class OrderModel {
   final int duration;
   final String pickupLocation;
   final String returnLocation;
-  final String agency;
   final String insuranceName;
   final num insurancePrice;
   final num tax;
@@ -21,8 +20,6 @@ class OrderModel {
   final String paymentMethod;
   final String status;
   final Timestamp createdAt;
-
-  // [BARU] Field Tambahan
   final num deliveryFee;
   final num securityDeposit;
   final bool isDelivery;
@@ -39,7 +36,6 @@ class OrderModel {
     required this.duration,
     required this.pickupLocation,
     required this.returnLocation,
-    required this.agency,
     required this.insuranceName,
     required this.insurancePrice,
     required this.tax,
@@ -48,7 +44,6 @@ class OrderModel {
     required this.paymentMethod,
     required this.status,
     required this.createdAt,
-    // [BARU] Initialize
     this.deliveryFee = 0,
     this.securityDeposit = 0,
     this.isDelivery = false,
@@ -67,7 +62,6 @@ class OrderModel {
       duration: json['duration'] ?? 0,
       pickupLocation: json['pickupLocation'] ?? '-',
       returnLocation: json['returnLocation'] ?? '-',
-      agency: json['agency'] ?? '',
       insuranceName: json['insuranceName'] ?? '-',
       insurancePrice: json['insurancePrice'] ?? 0,
       tax: json['tax'] ?? 0,
@@ -76,7 +70,6 @@ class OrderModel {
       paymentMethod: json['paymentMethod'] ?? '',
       status: json['status'] ?? 'Dikirim',
       createdAt: json['createdAt'] ?? Timestamp.now(),
-      // [BARU] Parse
       deliveryFee: json['deliveryFee'] ?? 0,
       securityDeposit: json['securityDeposit'] ?? 0,
       isDelivery: json['isDelivery'] ?? false,
@@ -95,7 +88,6 @@ class OrderModel {
       'duration': duration,
       'pickupLocation': pickupLocation,
       'returnLocation': returnLocation,
-      'agency': agency,
       'insuranceName': insuranceName,
       'insurancePrice': insurancePrice,
       'tax': tax,
@@ -104,7 +96,6 @@ class OrderModel {
       'paymentMethod': paymentMethod,
       'status': status,
       'createdAt': createdAt,
-      // [BARU] Save
       'deliveryFee': deliveryFee,
       'securityDeposit': securityDeposit,
       'isDelivery': isDelivery,

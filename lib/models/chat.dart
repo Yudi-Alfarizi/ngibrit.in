@@ -7,6 +7,7 @@ class Chat {
   final String senderId;
   final Map? bikeDetail;
   final Timestamp? timestamp;
+
   Chat({
     required this.roomId,
     required this.message,
@@ -29,14 +30,14 @@ class Chat {
 
   factory Chat.fromJson(Map<String, dynamic> json) {
     return Chat(
-      roomId: json['roomId'] as String,
-      message: json['message'] as String,
-      receiverId: json['receiverId'] as String,
-      senderId: json['senderId'] as String,
-      bikeDetail: json['bikeDetail'] != null ? Map.from(json['bikeDetail'] as Map<String,dynamic>) : null,
-      timestamp: json['timestamp'],
-      );
+      roomId: json['roomId']?.toString() ?? '',
+      message: json['message']?.toString() ?? '',
+      receiverId: json['receiverId']?.toString() ?? '',
+      senderId: json['senderId']?.toString() ?? '',
+      bikeDetail: json['bikeDetail'] != null
+          ? Map<String, dynamic>.from(json['bikeDetail'] as Map)
+          : null,
+      timestamp: json['timestamp'] as Timestamp?,
+    );
   }
-
-
 }
